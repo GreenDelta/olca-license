@@ -1,3 +1,5 @@
-root-ca/
-nexus-ca/
-.idea/
+/root-ca/
+/nexus-ca/
+/.idea/
+/target/
+/products/
