@@ -114,8 +114,6 @@ public class CertificateGenerator {
 			issuedCert.verify(keyPair.getPublic(), BC_PROVIDER);
 
 			writeCertToFileBase64Encoded(issuedCert, "products/issued-cert.crt");
-			exportKeyPairToKeystoreFile(issuedCertKeyPair, issuedCert,
-					"issued-cert", "products/issued-cert.pfx", "PKCS12", "pass");
 		} catch (Exception e) {
 			log.error("Error while creating the certificate.", e);
 		}
@@ -133,14 +131,4 @@ public class CertificateGenerator {
 		}
 	}
 
-	static void exportKeyPairToKeystoreFile(KeyPair keyPair,
-			X509Certificate certificate, String alias, String fileName,
-			String storeType, String storePass) throws Exception {
-		KeyStore sslKeyStore = KeyStore.getInstance(storeType, BC_PROVIDER);
-		sslKeyStore.load(null, null);
-		var certChain = new Certificate[]{certificate};
-		sslKeyStore.setKeyEntry(alias, keyPair.getPrivate(), null, certChain);
-		FileOutputStream keyStoreOs = new FileOutputStream(fileName);
-		sslKeyStore.store(keyStoreOs, storePass.toCharArray());
-	}
 }
