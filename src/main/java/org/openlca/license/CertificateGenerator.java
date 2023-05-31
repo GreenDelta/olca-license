@@ -53,7 +53,7 @@ public class CertificateGenerator {
 
 			// Setup start date to yesterday and end date for 1 year validity
 			var calendar = Calendar.getInstance();
-			calendar.add(Calendar.DATE, 2);
+			calendar.add(Calendar.DATE, -1);
 			var startDate = calendar.getTime();
 
 			calendar.add(Calendar.YEAR, 1);
