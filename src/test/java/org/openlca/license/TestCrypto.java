@@ -1,4 +1,4 @@
-package org.openlca;
+package org.openlca.license;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -11,8 +11,6 @@ import java.nio.file.Files;
 import java.util.Arrays;
 
 import org.junit.rules.TemporaryFolder;
-import org.openlca.license.Crypto;
-import org.openlca.license.CryptoException;
 
 
 public class TestCrypto {

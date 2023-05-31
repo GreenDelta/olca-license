@@ -20,10 +20,8 @@ import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
-import java.security.KeyStore;
 import java.security.SecureRandom;
 import java.security.Security;
-import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.Calendar;
 
@@ -55,7 +53,7 @@ public class CertificateGenerator {
 
 			// Setup start date to yesterday and end date for 1 year validity
 			var calendar = Calendar.getInstance();
-			calendar.add(Calendar.DATE, -1);
+			calendar.add(Calendar.DATE, 2);
 			var startDate = calendar.getTime();
 
 			calendar.add(Calendar.YEAR, 1);
@@ -113,7 +111,7 @@ public class CertificateGenerator {
 			// Verify the issued cert signature against the CA (issuer) cert
 			issuedCert.verify(keyPair.getPublic(), BC_PROVIDER);
 
-			writeCertToFileBase64Encoded(issuedCert, "products/issued-cert.crt");
+			writeCertToFileBase64Encoded(issuedCert, "outputs/issued-cert.crt");
 		} catch (Exception e) {
 			log.error("Error while creating the certificate.", e);
 		}
@@ -122,7 +120,7 @@ public class CertificateGenerator {
 	static void writeCertToFileBase64Encoded(X509Certificate certificate,
 			String fileName) throws Exception {
 		var bytes = certificate.getEncoded();
-		try (final var out = new FileOutputStream(fileName)) {
+		try (final var out = new FileOutputStream(fileName, false)) {
 			out.write("-----BEGIN CERTIFICATE-----\n"
 					.getBytes(StandardCharsets.US_ASCII));
 			out.write(Base64.encode(bytes));
