@@ -1,4 +1,4 @@
-package org.openlca.license;
+package org.openlca.license.crypto;
 
 
 public class CryptoException extends Exception {

@@ -1,16 +1,16 @@
-package org.openlca.license;
+package org.openlca.license.crypto;
 
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.util.Arrays;
 
-import org.junit.rules.TemporaryFolder;
+import static org.junit.Assert.assertArrayEquals;
 
 
 public class TestCrypto {
@@ -49,8 +49,7 @@ public class TestCrypto {
 
 			Crypto.encrypt(password, salt, inputFile, encryptedFile);
 			Crypto.decrypt(password, salt, encryptedFile, decryptedFile);
-			assert Arrays.equals(
-					Files.readAllBytes(inputFile.toPath()),
+			assertArrayEquals(Files.readAllBytes(inputFile.toPath()),
 					Files.readAllBytes(decryptedFile.toPath()));
 		} catch (CryptoException | IOException e) {
 			throw new RuntimeException(e);

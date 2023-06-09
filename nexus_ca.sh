@@ -5,6 +5,7 @@ CURRENT=$(pwd)
 # Create the Nexus CA subordinated from the root CA.
 
 printf "\nCreating the Nexus CA directory structure..."
+rm -rf nexus-ca
 mkdir nexus-ca
 cp config/nexus-ca.conf nexus-ca/nexus-ca.conf
 cd nexus-ca || exit 0
@@ -24,5 +25,5 @@ openssl req -new -config nexus-ca.conf -out nexus-ca.csr \
 
 printf "\nCreating the Nexus CA certificate..."
 cd "$CURRENT"/root-ca || exit 0
-openssl ca -config root-ca.conf -in "$CURRENT"/nexus-ca/nexus-ca.csr \
+openssl ca -batch -config root-ca.conf -in "$CURRENT"/nexus-ca/nexus-ca.csr \
  -out "$CURRENT"/nexus-ca/nexus-ca.crt -extensions sub_ca_ext

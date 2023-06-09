@@ -1,0 +1,64 @@
+package org.openlca.license.signature;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.Signature;
+import java.security.SignatureException;
+
+public class SignAgent {
+
+	public static final String ALGORITHM = "SHA256withRSA";
+
+	public static byte[] signFolder(File folder, PrivateKey key)
+			throws SignatureException {
+		try {
+			var signAgent = Signature.getInstance(ALGORITHM);
+			signAgent.initSign(key);
+
+			try (var walk = Files.walk(folder.toPath())) {
+				walk.filter(Files::isRegularFile)
+						.forEach(path -> updateFile(path, signAgent));
+			}
+
+			return signAgent.sign();
+		} catch (NoSuchAlgorithmException | InvalidKeyException | IOException |
+						 SignatureException e) {
+			throw new SignatureException("Error while signing the library", e);
+		}
+	}
+
+	public static boolean verifySignature(File folder, byte[] sign, PublicKey key)
+			throws SignAgentException {
+		try {
+			var signAgent = Signature.getInstance(ALGORITHM);
+			signAgent.initVerify(key);
+
+			try (var walk = Files.walk(folder.toPath())) {
+				walk.filter(Files::isRegularFile)
+						.forEach(path -> updateFile(path, signAgent));
+			}
+
+			return signAgent.verify(sign);
+		} catch (NoSuchAlgorithmException | InvalidKeyException | IOException |
+						 SignatureException e) {
+			throw new SignAgentException("Error while verifying the signature", e);
+		}
+	}
+
+	private static void updateFile(Path path, Signature signAgent) {
+		try {
+			var bytes = Files.readAllBytes(path);
+			signAgent.update(bytes);
+		} catch (IOException | SignatureException e) {
+			throw new RuntimeException("Error while signing the following file: "
+					+ path.getFileName(), e);
+		}
+	}
+
+}

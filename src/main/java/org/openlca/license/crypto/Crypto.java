@@ -1,10 +1,9 @@
-package org.openlca.license;
+package org.openlca.license.crypto;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
-import javax.crypto.SecretKey;
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
@@ -25,14 +24,28 @@ public class Crypto {
 
 	public static void encrypt(String password, byte[] salt, File inputFile,
 			File outputFile) throws CryptoException {
-		var key = getKeyFromPassword(password, salt);
-		doCrypto(Cipher.ENCRYPT_MODE, key, inputFile, outputFile);
+		try {
+			var key = getKeyFromPassword(password, salt);
+			var cipher = Cipher.getInstance(TRANSFORMATION);
+			cipher.init(Cipher.ENCRYPT_MODE, key);
+			doCrypto(cipher, inputFile, outputFile);
+		} catch (NoSuchPaddingException | NoSuchAlgorithmException |
+						 InvalidKeyException e) {
+			throw new CryptoException("Error while encrypting the file", e);
+		}
 	}
 
 	public static void decrypt(String password, byte[] salt, File inputFile,
 			File outputFile) throws CryptoException {
-		var hash = getKeyFromPassword(password, salt);
-		doCrypto(Cipher.DECRYPT_MODE, hash, inputFile, outputFile);
+		try {
+			var key = getKeyFromPassword(password, salt);
+			var cipher = Cipher.getInstance(TRANSFORMATION);
+			cipher.init(Cipher.DECRYPT_MODE, key);
+			doCrypto(cipher, inputFile, outputFile);
+		} catch (NoSuchPaddingException | NoSuchAlgorithmException |
+						 InvalidKeyException e) {
+			throw new CryptoException("Error while decrypting the file", e);
+		}
 	}
 
 	private static SecretKeySpec getKeyFromPassword(String password, byte[] salt)
@@ -40,9 +53,8 @@ public class Crypto {
 		try {
 			var spec = new PBEKeySpec(password.toCharArray(), salt, 65536, 128);
 			var factory = SecretKeyFactory.getInstance(HASH);
-
-			return new SecretKeySpec(factory.generateSecret(spec)
-					.getEncoded(), ALGORITHM);
+			var encoded = factory.generateSecret(spec).getEncoded();
+			return new SecretKeySpec(encoded, ALGORITHM);
 		} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
 			throw new CryptoException("Error while generating the key form the " +
 					"password", e);
@@ -56,13 +68,9 @@ public class Crypto {
 		return salt;
 	}
 
-	private static void doCrypto(int mode, SecretKey key,	File inputFile,
+	private static void doCrypto(Cipher cipher, File inputFile,
 			File outputFile) throws CryptoException {
 		try {
-			var cipher = Cipher.getInstance(TRANSFORMATION);
-
-			cipher.init(mode, key);
-
 			var inputStream = new FileInputStream(inputFile);
 			var outputStream = new FileOutputStream(outputFile);
 			var buffer = new byte[64];
@@ -79,13 +87,9 @@ public class Crypto {
 			}
 			inputStream.close();
 			outputStream.close();
-		} catch (NoSuchAlgorithmException | NoSuchPaddingException |
-						 InvalidKeyException | IOException | IllegalBlockSizeException
-						 | BadPaddingException e) {
-			var modeString = mode == Cipher.ENCRYPT_MODE
-					? "encrypting"
-					: "decrypting";
-			throw new CryptoException("Error while " + modeString + " file.", e);
+		} catch (IOException | IllegalBlockSizeException| BadPaddingException e) {
+			throw new CryptoException("Error while decrypting or encrypting the file",
+					e);
 		}
 	}
 
