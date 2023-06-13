@@ -37,6 +37,33 @@ import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.List;
 
+
+/**
+ * <p>
+ *   The LicenseGenerator class is used to generate the license elements of a
+ *   data library. A license generator is constructed by calling the static
+ *   method {@code getInstance} with a certificate authority as input.
+ * </p>
+ * <p>
+ *   The licensing of a data library consists in three operations:
+ *   <ol>
+ *     <li>creation of a X509 certificate signed by the issuer certificate
+ *     authority with the information of the owner,</li>
+ *     <li>symmetric encryption of the data indices with a key generated with
+ *     the user password,</li>
+ *     <li>signature of the data library with the above-mentioned certificate
+ *     private key.</li>
+ *   </ol>
+ * </p>
+ *
+ * In order to sign a data library, one can use the following lines:
+ * <p>
+ * <code>
+ * var generator = LicenseGenerator.getInstance(CertAuthFileInputStream);
+ * var licensedLib = generator.doLicensing(libraryFIS, licenseInfo, password);
+ * </code>
+ *
+ */
 public class LicenseGenerator {
 
 	private static final String BC = "BC";
