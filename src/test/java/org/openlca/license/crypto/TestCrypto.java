@@ -40,7 +40,7 @@ public class TestCrypto {
 
 	@Test
 	public void testTransitivity() {
-		var password = "password";
+		var password = "password123";
 		var salt = Crypto.generateSalt();
 
 		try {

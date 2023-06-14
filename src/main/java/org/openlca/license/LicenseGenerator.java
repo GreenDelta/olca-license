@@ -106,8 +106,7 @@ public class LicenseGenerator {
 
 			CertificateGenerator.writeCertToBase64(certificate, library, CERT_FILE);
 
-			var salt = encryptIndices(library, password);
-			storeFile(library, salt, SALT_FILE);
+			encryptIndices(library, password, keyPair.getPublic());
 
 			var signature = SignAgent.signFolder(library, keyPair.getPrivate());
 			if (!SignAgent.verifySignature(library, signature, keyPair.getPublic())) {
@@ -122,20 +121,17 @@ public class LicenseGenerator {
 		}
 	}
 
-	private byte[] encryptIndices(File library, String password)
+	private void encryptIndices(File library, String pass, PublicKey publicKey)
 			throws LicenseException {
 		try {
-			var salt = Crypto.generateSalt();
-
 			for (var name : INDICES) {
 				var input = new File(library, name + ".bin");
 				if (!input.exists())
 					continue;
 				var output = new File(library, name + ".enc");
-				Crypto.encrypt(password, salt, input, output);
+				Crypto.encrypt(pass, publicKey.getEncoded(), input, output);
 				Files.delete(input.toPath());
 			}
-			return salt;
 		} catch (IOException | CryptoException e) {
 			throw new LicenseException("Error while encrypting the indices", e);
 		}

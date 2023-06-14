@@ -71,9 +71,6 @@ public class TestLicenseGenerator {
 		var licenseInfo = LicenseInfo.of(certFile);
 		assertEquals(info, licenseInfo);
 
-		var saltFile = new File(licensedLib, SALT_FILE);
-		assertTrue(saltFile.exists());
-
 		var signFile = new File(licensedLib, SIGN_FILE);
 		assertTrue(signFile.exists());
 	}
