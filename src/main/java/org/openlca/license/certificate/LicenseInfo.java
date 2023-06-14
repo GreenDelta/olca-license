@@ -2,9 +2,7 @@ package org.openlca.license.certificate;
 
 import org.bouncycastle.cert.jcajce.JcaX509CertificateHolder;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
+import java.io.InputStream;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
@@ -14,11 +12,10 @@ import java.util.Date;
 public record LicenseInfo(Date notBefore, Date notAfter, Person subject,
 													Person issuer) {
 
-	public static LicenseInfo of(File file) throws FileNotFoundException,
-			CertificateException {
-		var inStream = new FileInputStream(file);
+	public static LicenseInfo of(InputStream inputStream)
+			throws CertificateException {
 		var cf = CertificateFactory.getInstance("X.509");
-		var cert = (X509Certificate) cf.generateCertificate(inStream);
+		var cert = (X509Certificate) cf.generateCertificate(inputStream);
 		var holder = new JcaX509CertificateHolder(cert);
 		return new LicenseInfo(
 				holder.getNotBefore(),

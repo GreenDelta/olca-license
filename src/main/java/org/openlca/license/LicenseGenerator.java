@@ -1,6 +1,8 @@
 package org.openlca.license;
 
+import com.google.gson.Gson;
 import org.bouncycastle.cert.X509CertificateHolder;
+import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openssl.PEMException;
 import org.bouncycastle.openssl.PEMParser;
@@ -9,6 +11,7 @@ import org.bouncycastle.openssl.jcajce.JceOpenSSLPKCS8DecryptorProviderBuilder;
 import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.pkcs.PKCS8EncryptedPrivateKeyInfo;
 import org.bouncycastle.pkcs.PKCSException;
+import org.bouncycastle.util.encoders.Base64;
 import org.openlca.license.certificate.CertificateGenerator;
 import org.openlca.license.certificate.LicenseInfo;
 import org.openlca.license.crypto.Crypto;
@@ -17,11 +20,12 @@ import org.openlca.license.signature.SignAgent;
 import org.openlca.license.signature.SignAgentException;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
@@ -35,7 +39,10 @@ import java.security.Security;
 import java.security.SignatureException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.util.HashMap;
 import java.util.List;
+
+import static org.openlca.license.signature.SignAgent.SIGNATURE;
 
 
 /**
@@ -68,9 +75,9 @@ public class LicenseGenerator {
 
 	private static final String BC = "BC";
 	private static final String KEY_ALGORITHM = "RSA";
-	public static final String SALT_FILE = "license.salt";
-	public static final String CERT_FILE = "license.crt";
-	public static final String SIGN_FILE = "license.sig";
+	public static final String JSON = "license.json";
+	public static final String CERTIFICATE = "certificate";
+	public static final String AUTHORITY = "authority";
 	public static List<String> INDICES = List.of("index_A", "index_B", "index_C");
 
 	public final X509CertificateHolder certAuthority;
@@ -99,26 +106,44 @@ public class LicenseGenerator {
 	}
 
 	public File doLicensing(File library, LicenseInfo info, String password)
-			throws LicenseException {
+			throws LicenseException, RuntimeException {
 		try {
+			var license = new HashMap<String, String>();
 			var keyPair = generateKeyPair();
 			var certificate = createCertificate(info, keyPair);
 
-			CertificateGenerator.writeCertToBase64(certificate, library, CERT_FILE);
+			license.put(CERTIFICATE, CertificateGenerator.toBase64(certificate));
 
 			encryptIndices(library, password, keyPair.getPublic());
 
 			var signature = SignAgent.signFolder(library, keyPair.getPrivate());
-			if (!SignAgent.verifySignature(library, signature, keyPair.getPublic())) {
+			var publicKey = keyPair.getPublic();
+			if (!SignAgent.verifySignature(library, signature, publicKey)) {
 				throw  new LicenseException("The signature could not be "
 						+ "verified");
 			}
-			storeFile(library, signature, SIGN_FILE);
+			license.put(SIGNATURE, new String(Base64.encode(signature)));
+
+			var authority = new JcaX509CertificateConverter()
+					.setProvider(BC)
+					.getCertificate(certAuthority);
+			license.put(AUTHORITY, CertificateGenerator.toBase64(authority));
+			addLicense(license, library);
 
 			return library;
-		} catch (CertificateException | SignatureException | SignAgentException e) {
+		} catch (CertificateException | SignatureException | SignAgentException |
+						 IOException e) {
 			throw new LicenseException("Error while licensing the library", e);
 		}
+	}
+
+	private void addLicense(HashMap<String, String> license, File library)
+			throws IOException {
+		var gson = new Gson();
+		var json = gson.toJson(license);
+		var writer = new BufferedWriter(new FileWriter(new File(library, JSON)));
+		writer.write(json);
+		writer.close();
 	}
 
 	private void encryptIndices(File library, String pass, PublicKey publicKey)
@@ -137,17 +162,7 @@ public class LicenseGenerator {
 		}
 	}
 
-	private void storeFile(File library, byte[] salt, String name)
-			throws LicenseException {
-		var outputFile = new File(library, name);
-		try (var outputStream = new FileOutputStream(outputFile)) {
-			outputStream.write(salt);
-		} catch (IOException e) {
-			throw new LicenseException("Error while storing " + name, e);
-		}
-	}
-
-	public X509Certificate createCertificate(LicenseInfo info, KeyPair keyPair)
+		public X509Certificate createCertificate(LicenseInfo info, KeyPair keyPair)
 			throws CertificateException {
 		var keyPairCA = new KeyPair(publicKeyCA, privateKeyCA);
 		var generator = new CertificateGenerator(certAuthority, keyPairCA);

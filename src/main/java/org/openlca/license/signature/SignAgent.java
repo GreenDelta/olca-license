@@ -11,9 +11,12 @@ import java.security.PublicKey;
 import java.security.Signature;
 import java.security.SignatureException;
 
+import static org.openlca.license.LicenseGenerator.JSON;
+
 public class SignAgent {
 
 	public static final String ALGORITHM = "SHA256withRSA";
+	public static final String SIGNATURE = "signature";
 
 	public static byte[] signFolder(File folder, PrivateKey key)
 			throws SignatureException {
@@ -41,6 +44,7 @@ public class SignAgent {
 
 			try (var walk = Files.walk(folder.toPath())) {
 				walk.filter(Files::isRegularFile)
+						.filter(path -> !path.getFileName().toString().equals(JSON))
 						.forEach(path -> updateFile(path, signAgent));
 			}
 

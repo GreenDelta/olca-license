@@ -1,25 +1,36 @@
 package org.openlca.license;
 
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+import com.google.gson.stream.JsonReader;
 import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.pkcs.PKCSException;
+import org.bouncycastle.util.encoders.Base64;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.openlca.license.certificate.CertUtils;
 import org.openlca.license.certificate.LicenseInfo;
+import org.openlca.license.signature.SignAgent;
 
 import java.io.BufferedWriter;
+import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.util.Date;
+import java.util.Map;
 import java.util.Objects;
 
 import static org.junit.Assert.*;
-import static org.openlca.license.LicenseGenerator.*;
+import static org.openlca.license.LicenseGenerator.CERTIFICATE;
+import static org.openlca.license.LicenseGenerator.JSON;
 import static org.openlca.license.TestUtils.getTestLicenseInfo;
+import static org.openlca.license.signature.SignAgent.SIGNATURE;
 
 
 public class TestLicenseGenerator {
@@ -65,14 +76,21 @@ public class TestLicenseGenerator {
 		var info = getTestLicenseInfo();
 		var licensedLib = generator.doLicensing(library, info, PASSWORD_LIB);
 
-		var certFile = new File(licensedLib, CERT_FILE);
-		assertTrue(certFile.exists());
+		var json = new File(licensedLib, JSON);
+		assertTrue(json.exists());
 
-		var licenseInfo = LicenseInfo.of(certFile);
+		var reader = new JsonReader(new FileReader(json));
+		var gson = new Gson();
+		var mapType = new TypeToken<Map<String, String>>() {}.getType();
+		Map<String, String> license = gson.fromJson(reader, mapType);
+
+		var certBytes = license.get(CERTIFICATE).getBytes();
+		var licenseInfo = LicenseInfo.of(new ByteArrayInputStream(certBytes));
 		assertEquals(info, licenseInfo);
 
-		var signFile = new File(licensedLib, SIGN_FILE);
-		assertTrue(signFile.exists());
+		var publicKey = CertUtils.getPublicKey(new ByteArrayInputStream(certBytes));
+		var signature = Base64.decode(license.get(SIGNATURE));
+		assertTrue(SignAgent.verifySignature(library, signature, publicKey));
 	}
 
 	private File createTestLibrary()

@@ -4,15 +4,12 @@ import org.bouncycastle.asn1.x500.X500Name;
 import org.junit.Test;
 import org.openlca.license.TestUtils;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.net.URISyntaxException;
+import java.io.IOException;
 import java.security.cert.CertificateException;
 import java.util.Calendar;
 import java.util.Objects;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.*;
 
 
 public class TestLicenseInfo {
@@ -72,14 +69,22 @@ public class TestLicenseInfo {
 
 	@Test
 	public void testReadLicense()
-			throws URISyntaxException, FileNotFoundException, CertificateException {
+			throws CertificateException, IOException {
 		var certName = "test.crt";
 		var certURL = getClass().getResource(certName);
-		var cert = new File(Objects.requireNonNull(certURL).toURI());
-		var info = LicenseInfo.of(cert);
+		var info = LicenseInfo.of(Objects.requireNonNull(certURL).openStream());
 		var expectedInfo = TestUtils.getTestLicenseInfo();
 
 		assertEquals(expectedInfo, info);
+	}
+
+	@Test
+	public void testValid() throws IOException, CertificateException {
+		var certName = "test.crt";
+		var certURL = getClass().getResource(certName);
+		var info = LicenseInfo.of(Objects.requireNonNull(certURL).openStream());
+
+		assertFalse(info.isValid());
 	}
 
 }

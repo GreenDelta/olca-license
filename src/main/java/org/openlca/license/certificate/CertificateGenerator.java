@@ -16,11 +16,7 @@ import org.bouncycastle.pkcs.PKCS10CertificationRequest;
 import org.bouncycastle.pkcs.jcajce.JcaPKCS10CertificationRequestBuilder;
 import org.bouncycastle.util.encoders.Base64;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
 import java.math.BigInteger;
-import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.KeyPair;
 import java.security.NoSuchAlgorithmException;
@@ -143,19 +139,10 @@ public class CertificateGenerator {
 		return p10Builder.build(getCsrContentSigner());
 	}
 
-	public static void writeCertToBase64(X509Certificate certificate,
-			File folder, String fileName) throws CertificateException {
-		try {
-			var bytes = certificate.getEncoded();
-			var certFile = new File(folder, fileName);
-			try (final var out = new FileOutputStream(certFile, false)) {
-				out.write(BEGIN.getBytes(StandardCharsets.US_ASCII));
-				out.write(Base64.encode(bytes));
-				out.write(END.getBytes(StandardCharsets.US_ASCII));
-			}
-		} catch (CertificateEncodingException | IOException e) {
-			throw new CertificateException("Error while writing the certificate", e);
-		}
+	public static String toBase64(X509Certificate certificate)
+			throws CertificateEncodingException {
+		var bytes = certificate.getEncoded();
+		return BEGIN + new String(Base64.encode(bytes)) + END;
 	}
 
 }
