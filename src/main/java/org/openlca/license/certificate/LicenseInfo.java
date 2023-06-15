@@ -12,17 +12,22 @@ import java.util.Date;
 public record LicenseInfo(Date notBefore, Date notAfter, Person subject,
 													Person issuer) {
 
-	public static LicenseInfo of(InputStream inputStream)
-			throws CertificateException {
-		var cf = CertificateFactory.getInstance("X.509");
-		var cert = (X509Certificate) cf.generateCertificate(inputStream);
-		var holder = new JcaX509CertificateHolder(cert);
-		return new LicenseInfo(
-				holder.getNotBefore(),
-				holder.getNotAfter(),
-				Person.of(holder.getSubject()),
-				Person.of(holder.getIssuer())
-		);
+	public static LicenseInfo of(InputStream inputStream) {
+		try {
+			var cf = CertificateFactory.getInstance("X.509");
+
+			var cert = (X509Certificate) cf.generateCertificate(inputStream);
+			var holder = new JcaX509CertificateHolder(cert);
+
+			return new LicenseInfo(
+					holder.getNotBefore(),
+					holder.getNotAfter(),
+					Person.of(holder.getSubject()),
+					Person.of(holder.getIssuer())
+			);
+		} catch (CertificateException e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 	public boolean isValid() {

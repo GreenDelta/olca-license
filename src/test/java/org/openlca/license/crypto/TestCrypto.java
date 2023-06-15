@@ -4,6 +4,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.openlca.license.Crypto;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -39,21 +40,17 @@ public class TestCrypto {
 	}
 
 	@Test
-	public void testTransitivity() {
+	public void testTransitivity() throws IOException {
 		var password = "password123";
 		var salt = Crypto.generateSalt();
 
-		try {
-			var encryptedFile = folder.newFile("test.encrypted");
-			var decryptedFile = folder.newFile("test.decrypted");
+		var encryptedFile = folder.newFile("test.encrypted");
+		var decryptedFile = folder.newFile("test.decrypted");
 
-			Crypto.encrypt(password, salt, inputFile, encryptedFile);
-			Crypto.decrypt(password, salt, encryptedFile, decryptedFile);
-			assertArrayEquals(Files.readAllBytes(inputFile.toPath()),
-					Files.readAllBytes(decryptedFile.toPath()));
-		} catch (CryptoException | IOException e) {
-			throw new RuntimeException(e);
-		}
+		Crypto.encrypt(password, salt, inputFile, encryptedFile);
+		Crypto.decrypt(password, salt, encryptedFile, decryptedFile);
+		assertArrayEquals(Files.readAllBytes(inputFile.toPath()),
+				Files.readAllBytes(decryptedFile.toPath()));
 	}
 
 }

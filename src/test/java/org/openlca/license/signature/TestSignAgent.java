@@ -5,6 +5,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.openlca.license.SignAgent;
 
 import java.io.File;
 import java.io.IOException;
@@ -46,13 +47,12 @@ public class TestSignAgent {
 	}
 
 	@Test
-	public void testValidSign() throws SignAgentException {
+	public void testValidSign() throws IOException {
 		assert SignAgent.verifySignature(folder, signature, keyPair.getPublic());
 	}
 
 	@Test
-	public void testInvalidSignAddingFile()
-			throws SignAgentException, IOException {
+	public void testInvalidSignAddingFile() throws IOException {
 		var file3 = new File(folder, "file3");
 		Files.write(file3.toPath(), "three".getBytes());
 
@@ -60,15 +60,13 @@ public class TestSignAgent {
 	}
 
 	@Test
-	public void testInvalidSignRemovingFile()
-			throws SignAgentException {
+	public void testInvalidSignRemovingFile() throws IOException {
 		assert file1.delete();
 		assert !SignAgent.verifySignature(folder, signature, keyPair.getPublic());
 	}
 
 	@Test
-	public void testInvalidSignEditingFile()
-			throws SignAgentException, IOException {
+	public void testInvalidSignEditingFile() throws IOException {
 		Files.write(file1.toPath(), "three".getBytes());
 		assert !SignAgent.verifySignature(folder, signature, keyPair.getPublic());
 	}

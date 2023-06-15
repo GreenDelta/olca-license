@@ -1,4 +1,4 @@
-package org.openlca.license.signature;
+package org.openlca.license;
 
 import java.io.File;
 import java.io.IOException;
@@ -36,10 +36,11 @@ public class SignAgent {
 		}
 	}
 
-	public static boolean verifySignature(File folder, byte[] sign, PublicKey key)
-			throws SignAgentException {
+	public static boolean verifySignature(File folder, byte[] signature,
+			PublicKey key) throws IOException {
 		try {
 			var signAgent = Signature.getInstance(ALGORITHM);
+
 			signAgent.initVerify(key);
 
 			try (var walk = Files.walk(folder.toPath())) {
@@ -48,10 +49,10 @@ public class SignAgent {
 						.forEach(path -> updateFile(path, signAgent));
 			}
 
-			return signAgent.verify(sign);
-		} catch (NoSuchAlgorithmException | InvalidKeyException | IOException |
+			return signAgent.verify(signature);
+		} catch (NoSuchAlgorithmException | InvalidKeyException |
 						 SignatureException e) {
-			throw new SignAgentException("Error while verifying the signature", e);
+			throw new RuntimeException(e);
 		}
 	}
 

@@ -3,8 +3,6 @@ package org.openlca.license;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
-import org.bouncycastle.operator.OperatorCreationException;
-import org.bouncycastle.pkcs.PKCSException;
 import org.bouncycastle.util.encoders.Base64;
 import org.junit.Before;
 import org.junit.Rule;
@@ -12,7 +10,6 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.openlca.license.certificate.CertUtils;
 import org.openlca.license.certificate.LicenseInfo;
-import org.openlca.license.signature.SignAgent;
 
 import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
@@ -23,14 +20,11 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.util.Date;
-import java.util.Map;
 import java.util.Objects;
 
 import static org.junit.Assert.*;
-import static org.openlca.license.LicenseGenerator.CERTIFICATE;
 import static org.openlca.license.LicenseGenerator.JSON;
 import static org.openlca.license.TestUtils.getTestLicenseInfo;
-import static org.openlca.license.signature.SignAgent.SIGNATURE;
 
 
 public class TestLicenseGenerator {
@@ -43,9 +37,10 @@ public class TestLicenseGenerator {
 	public TemporaryFolder tempFolder = new TemporaryFolder();
 
 	@Before
-	public void initializeCertificateAuthority()
-			throws IOException, URISyntaxException {
+	public void initializeCertificateAuthority() throws IOException,
+			URISyntaxException {
 		var caURL = getClass().getResource("nexus-ca");
+
 		ca = new File(Objects.requireNonNull(caURL).toURI());
 
 		// Add password file
@@ -57,7 +52,7 @@ public class TestLicenseGenerator {
 
 	@Test
 	public void testCreateLicenseGeneratorInstance()
-			throws IOException, OperatorCreationException, PKCSException {
+			throws IOException {
 		var generator = LicenseGenerator.getInstance(ca);
 
 		assertNotNull(generator);
@@ -74,6 +69,7 @@ public class TestLicenseGenerator {
 		var generator = LicenseGenerator.getInstance(ca);
 		var library = createTestLibrary();
 		var info = getTestLicenseInfo();
+
 		var licensedLib = generator.doLicensing(library, info, PASSWORD_LIB);
 
 		var json = new File(licensedLib, JSON);
@@ -81,15 +77,15 @@ public class TestLicenseGenerator {
 
 		var reader = new JsonReader(new FileReader(json));
 		var gson = new Gson();
-		var mapType = new TypeToken<Map<String, String>>() {}.getType();
-		Map<String, String> license = gson.fromJson(reader, mapType);
+		var mapType = new TypeToken<License>() {}.getType();
+		License license = gson.fromJson(reader, mapType);
 
-		var certBytes = license.get(CERTIFICATE).getBytes();
+		var certBytes = license.certificate().getBytes();
 		var licenseInfo = LicenseInfo.of(new ByteArrayInputStream(certBytes));
 		assertEquals(info, licenseInfo);
 
 		var publicKey = CertUtils.getPublicKey(new ByteArrayInputStream(certBytes));
-		var signature = Base64.decode(license.get(SIGNATURE));
+		var signature = Base64.decode(license.signature());
 		assertTrue(SignAgent.verifySignature(library, signature, publicKey));
 	}
 

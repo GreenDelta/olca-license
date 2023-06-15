@@ -1,4 +1,4 @@
-package org.openlca.license.crypto;
+package org.openlca.license;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -23,41 +23,43 @@ public class Crypto {
 	private static final String HASH = "PBKDF2WithHmacSHA1";
 
 	public static void encrypt(String password, byte[] salt, File inputFile,
-			File outputFile) throws CryptoException {
+			File outputFile) throws IOException {
+		var key = getKeyFromPassword(password, salt);
 		try {
-			var key = getKeyFromPassword(password, salt);
 			var cipher = Cipher.getInstance(TRANSFORMATION);
 			cipher.init(Cipher.ENCRYPT_MODE, key);
 			doCrypto(cipher, inputFile, outputFile);
-		} catch (NoSuchPaddingException | NoSuchAlgorithmException |
+		} catch (NoSuchAlgorithmException | NoSuchPaddingException |
 						 InvalidKeyException e) {
-			throw new CryptoException("Error while encrypting the file", e);
+			throw new RuntimeException("Error while encrypting the following file: "
+					+ inputFile.getName(), e);
 		}
 	}
 
 	public static void decrypt(String password, byte[] salt, File inputFile,
-			File outputFile) throws CryptoException {
+			File outputFile) throws IOException {
+		var key = getKeyFromPassword(password, salt);
 		try {
-			var key = getKeyFromPassword(password, salt);
 			var cipher = Cipher.getInstance(TRANSFORMATION);
 			cipher.init(Cipher.DECRYPT_MODE, key);
 			doCrypto(cipher, inputFile, outputFile);
-		} catch (NoSuchPaddingException | NoSuchAlgorithmException |
+		} catch (NoSuchAlgorithmException | NoSuchPaddingException |
 						 InvalidKeyException e) {
-			throw new CryptoException("Error while decrypting the file", e);
+			throw new RuntimeException("Error while decrypting the following file: "
+					+ inputFile.getName(), e);
 		}
 	}
 
-	private static SecretKeySpec getKeyFromPassword(String password, byte[] salt)
-			throws CryptoException {
+	private static SecretKeySpec getKeyFromPassword(String pass, byte[] salt) {
+		var spec = new PBEKeySpec(pass.toCharArray(), salt, 65536, 128);
+
 		try {
-			var spec = new PBEKeySpec(password.toCharArray(), salt, 65536, 128);
 			var factory = SecretKeyFactory.getInstance(HASH);
 			var encoded = factory.generateSecret(spec).getEncoded();
 			return new SecretKeySpec(encoded, ALGORITHM);
 		} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-			throw new CryptoException("Error while generating the key form the " +
-					"password", e);
+			throw new RuntimeException("Error while getting the secret key from the "
+					+ "password and salt.", e);
 		}
 	}
 
@@ -68,29 +70,30 @@ public class Crypto {
 		return salt;
 	}
 
-	private static void doCrypto(Cipher cipher, File inputFile,
-			File outputFile) throws CryptoException {
-		try {
-			var inputStream = new FileInputStream(inputFile);
-			var outputStream = new FileOutputStream(outputFile);
-			var buffer = new byte[64];
-			int bytesRead;
-			while ((bytesRead = inputStream.read(buffer)) != -1) {
-				var output = cipher.update(buffer, 0, bytesRead);
-				if (output != null) {
-					outputStream.write(output);
-				}
+	private static void doCrypto(Cipher cipher, File inputFile, File outputFile)
+			throws IOException {
+		var inputStream = new FileInputStream(inputFile);
+		var outputStream = new FileOutputStream(outputFile);
+		var buffer = new byte[64];
+		int bytesRead;
+		while ((bytesRead = inputStream.read(buffer)) != -1) {
+			var output = cipher.update(buffer, 0, bytesRead);
+			if (output != null) {
+				outputStream.write(output);
 			}
+		}
+
+		try {
 			var outputBytes = cipher.doFinal();
 			if (outputBytes != null) {
 				outputStream.write(outputBytes);
 			}
-			inputStream.close();
-			outputStream.close();
-		} catch (IOException | IllegalBlockSizeException| BadPaddingException e) {
-			throw new CryptoException("Error while decrypting or encrypting the file",
-					e);
+		} catch (IllegalBlockSizeException | BadPaddingException e) {
+			throw new RuntimeException(e);
 		}
+
+		inputStream.close();
+		outputStream.close();
 	}
 
 }

@@ -49,8 +49,7 @@ public class CertificateGenerator {
 		this.keyPairCA = keyPair;
 	}
 
-	public X509Certificate createCertificate(LicenseInfo info, KeyPair keyPair)
-			throws CertificateException {
+	public X509Certificate createCertificate(LicenseInfo info, KeyPair keyPair) {
 		try {
 			var csr = createCSR(info, keyPair.getPublic());
 			var certBuilder = getCertBuilder(info, csr);
@@ -67,14 +66,15 @@ public class CertificateGenerator {
 
 			return issuedCert;
 		} catch (NoSuchAlgorithmException | InvalidKeyException |
-						 NoSuchProviderException | SignatureException e) {
-			throw new CertificateException("Error while creating the license "
-					+ "certificate", e);
+						 NoSuchProviderException | SignatureException |
+						 CertificateException e) {
+			throw new RuntimeException("Error while creating the license "
+					+ "certificate.", e);
 		}
 	}
 
 	private void addExtensions(X509v3CertificateBuilder certBuilder,
-			PKCS10CertificationRequest csr) throws CertificateException {
+			PKCS10CertificationRequest csr) {
 		try {
 			var extensionUtils = new JcaX509ExtensionUtils();
 
@@ -95,28 +95,26 @@ public class CertificateGenerator {
 			// Add intended key usage extension if needed
 			var keyUsage = new KeyUsage(KeyUsage.digitalSignature);
 			certBuilder.addExtension(Extension.keyUsage, false, keyUsage);
-		} catch (CertificateException | NoSuchAlgorithmException
-						 | CertIOException e) {
-			throw new CertificateException("Error while adding extension to the "
-					+ "certificate", e);
+		} catch (NoSuchAlgorithmException | CertIOException | CertificateException e) {
+			throw new RuntimeException("Error while adding the extensions to the "
+					+ "license certificate.", e);
 		}
 	}
 
-	private ContentSigner getCsrContentSigner() throws CertificateException {
-		try {
+	private ContentSigner getCsrContentSigner() {
 		if (csrContentSigner == null) {
 			var csrBuilder = new JcaContentSignerBuilder(SIGNATURE_ALGORITHM);
 			csrBuilder.setProvider(BC);
 
 			// Sign the new KeyPair with the CA private key
-			csrContentSigner = csrBuilder.build(keyPairCA.getPrivate());
+			try {
+				csrContentSigner = csrBuilder.build(keyPairCA.getPrivate());
+			} catch (OperatorCreationException e) {
+				throw new RuntimeException("Error while creating the CST content "
+						+ "signer.", e);
+			}
 		}
 		return csrContentSigner;
-		} catch (OperatorCreationException e) {
-			throw new CertificateException("Error while getting ContentSigner for "
-					+ "the CSR", e);
-		}
-
 	}
 
 	private X509v3CertificateBuilder getCertBuilder(LicenseInfo info,
@@ -132,10 +130,10 @@ public class CertificateGenerator {
 				info.notAfter(), csr.getSubject(), csr.getSubjectPublicKeyInfo());
 	}
 
-	private PKCS10CertificationRequest createCSR(LicenseInfo info, PublicKey key)
-			throws CertificateException {
+	private PKCS10CertificationRequest createCSR(LicenseInfo info, PublicKey
+			publicKey) {
 		var subject = info.subject().asX500Name();
-		var p10Builder = new JcaPKCS10CertificationRequestBuilder(subject, key);
+		var p10Builder = new JcaPKCS10CertificationRequestBuilder(subject, publicKey);
 		return p10Builder.build(getCsrContentSigner());
 	}
 
