@@ -1,12 +1,12 @@
-package org.openlca.license.crypto;
+package org.openlca.license;
 
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.openlca.license.Crypto;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -30,7 +30,7 @@ public class TestCrypto {
 		try {
 			inputFile = folder.newFile("test.bin");
 			try (var outputStream = new FileOutputStream(inputFile)) {
-				outputStream.write("test".getBytes());
+				outputStream.write("test123".getBytes());
 			}
 		}
 		catch(IOException e) {
@@ -47,8 +47,16 @@ public class TestCrypto {
 		var encryptedFile = folder.newFile("test.encrypted");
 		var decryptedFile = folder.newFile("test.decrypted");
 
-		Crypto.encrypt(password, salt, inputFile, encryptedFile);
-		Crypto.decrypt(password, salt, encryptedFile, decryptedFile);
+		try (var in = new FileInputStream(inputFile);
+				 var out = new FileOutputStream(encryptedFile)) {
+			Crypto.encrypt(password, salt, in, out);
+		}
+
+		try (var in = new FileInputStream(encryptedFile);
+				 var out = new FileOutputStream(decryptedFile)) {
+			Crypto.decrypt(password, salt, in, out);
+		}
+
 		assertArrayEquals(Files.readAllBytes(inputFile.toPath()),
 				Files.readAllBytes(decryptedFile.toPath()));
 	}

@@ -3,7 +3,6 @@ package org.openlca.license;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
-import org.bouncycastle.util.encoders.Base64;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -11,23 +10,28 @@ import org.junit.rules.TemporaryFolder;
 import org.openlca.license.certificate.CertUtils;
 import org.openlca.license.certificate.LicenseInfo;
 
-import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.Objects;
+import java.util.zip.ZipInputStream;
+import java.util.zip.ZipOutputStream;
 
 import static org.junit.Assert.*;
-import static org.openlca.license.LicenseGenerator.JSON;
+import static org.openlca.license.Licensor.JSON;
 import static org.openlca.license.TestUtils.getTestLicenseInfo;
 
 
-public class TestLicenseGenerator {
+public class TestLicensor {
 
 	private File ca;
 	private static final String PASSWORD_LIB = "passlib123";
@@ -53,7 +57,7 @@ public class TestLicenseGenerator {
 	@Test
 	public void testCreateLicenseGeneratorInstance()
 			throws IOException {
-		var generator = LicenseGenerator.getInstance(ca);
+		var generator = Licensor.getInstance(ca);
 
 		assertNotNull(generator);
 		assertNotNull(generator.certAuthority);
@@ -65,14 +69,26 @@ public class TestLicenseGenerator {
 	}
 
 	@Test
-	public void testCreateLicensedLibrary() throws Exception {
-		var generator = LicenseGenerator.getInstance(ca);
-		var library = createTestLibrary();
+	public void testCreateLicensedLibrary() throws IOException,
+			URISyntaxException {
+		var rawLibrary = tempFolder.newFile("raw.zlib");
+		var library = tempFolder.newFile("library.zlib");
+
 		var info = getTestLicenseInfo();
 
-		var licensedLib = generator.doLicensing(library, info, PASSWORD_LIB);
+		try (var input = TestUtils.createTestLibrary(rawLibrary);
+				 var output = new ZipOutputStream(new FileOutputStream(library))) {
+			var licensor = Licensor.getInstance(ca);
+			licensor.license(input, output, PASSWORD_LIB, info);
+		}
 
-		var json = new File(licensedLib, JSON);
+		var libraryFolder = tempFolder.newFolder("library");
+		try (var zip = new ZipInputStream(new FileInputStream(library))) {
+			TestUtils.extract(zip, libraryFolder);
+		}
+
+		var json = new File(libraryFolder, JSON);
+		TestUtils.extractFile(library, JSON, new FileOutputStream(json));
 		assertTrue(json.exists());
 
 		var reader = new JsonReader(new FileReader(json));
@@ -85,27 +101,12 @@ public class TestLicenseGenerator {
 		assertEquals(info, licenseInfo);
 
 		var publicKey = CertUtils.getPublicKey(new ByteArrayInputStream(certBytes));
-		var signature = Base64.decode(license.signature());
-		assertTrue(SignAgent.verifySignature(library, signature, publicKey));
-	}
+		var signatures = license.signaturesAsBytes();
+		var signAgent = new SignatureAgent.Verifier(publicKey, signatures);
 
-	private File createTestLibrary()
-			throws IOException, URISyntaxException {
-		var library = tempFolder.newFolder("library");
-		var indexURL = getClass().getResource("index.bin");
-		var index = new File(Objects.requireNonNull(indexURL).toURI());
-
-		var indexA = new File(library, "index_A.bin");
-		Files.copy(index.toPath(), indexA.toPath());
-		var indexB = new File(library, "index_B.bin");
-		Files.copy(index.toPath(), indexB.toPath());
-
-		var json = new File(library, "library.json");
-		var writer = new BufferedWriter(new FileWriter(json));
-		writer.write("{\"name\":\"new_database\",\"version\":\"1.0\"}");
-		writer.close();
-
-		return library;
+		List<Path> blackList = new ArrayList<>();
+		blackList.add(json.toPath());
+		assertTrue(signAgent.verify(libraryFolder, blackList));
 	}
 
 }

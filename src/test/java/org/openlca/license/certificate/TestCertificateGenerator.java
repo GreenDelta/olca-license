@@ -3,7 +3,7 @@ package org.openlca.license.certificate;
 import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.junit.Test;
-import org.openlca.license.LicenseGenerator;
+import org.openlca.license.Licensor;
 import org.openlca.license.TestUtils;
 
 import java.io.File;
@@ -30,7 +30,7 @@ public class TestCertificateGenerator {
 		var certAuth = getTestCertAuth();
 		var generator = new CertificateGenerator(certAuth, keyPairCA);
 		var info = TestUtils.getTestLicenseInfo();
-		var keyPair = LicenseGenerator.generateKeyPair();
+		var keyPair = Licensor.generateKeyPair();
 		var certificate = generator.createCertificate(info, keyPair);
 
 		assertNotNull(certificate);
@@ -57,7 +57,7 @@ public class TestCertificateGenerator {
 		var certURL = getClass().getResource(certName);
 		var certFile = new File(Objects.requireNonNull(certURL).toURI());
 
-		var parser = LicenseGenerator.getPEMParser(certFile);
+		var parser = Licensor.getPEMParser(certFile);
 		return  (X509CertificateHolder) parser.readObject();
 	}
 

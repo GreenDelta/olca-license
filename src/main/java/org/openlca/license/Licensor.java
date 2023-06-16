@@ -1,6 +1,6 @@
 package org.openlca.license;
 
-import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -16,15 +16,14 @@ import org.openlca.license.certificate.CertificateGenerator;
 import org.openlca.license.certificate.LicenseInfo;
 
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.nio.file.Files;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
@@ -32,16 +31,19 @@ import java.security.NoSuchProviderException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.Security;
-import java.security.SignatureException;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+import java.util.zip.ZipOutputStream;
 
 
 /**
  * <p>
- * The LicenseGenerator class is used to generate the license elements of a
- * data library. A license generator is constructed by calling the static
+ * The Licensor class is used to generate the license elements of a
+ * data library. A licensor is constructed by calling the static
  * method {@code getInstance} with a certificate authority as input.
  * </p>
  * <p>
@@ -63,7 +65,7 @@ import java.util.List;
  * var licensedLib = generator.doLicensing(libraryFIS, licenseInfo, password);
  * </code>
  */
-public class LicenseGenerator {
+public class Licensor {
 
 	private static final String BC = "BC";
 	private static final String KEY_ALGORITHM = "RSA";
@@ -80,14 +82,14 @@ public class LicenseGenerator {
 
 	private KeyPair keyPair;
 
-	public LicenseGenerator(X509CertificateHolder ca, PublicKey publicKey,
+	public Licensor(X509CertificateHolder ca, PublicKey publicKey,
 			PrivateKey privateKey) {
 		certAuthority = ca;
 		publicKeyCA = publicKey;
 		privateKeyCA = privateKey;
 	}
 
-	public static LicenseGenerator getInstance(File caDir)
+	public static Licensor getInstance(File caDir)
 			throws IOException {
 		var parser = getPEMParser(new File(caDir, caDir.getName() + ".crt"));
 		var certificate = (X509CertificateHolder) parser.readObject();
@@ -95,22 +97,54 @@ public class LicenseGenerator {
 		var publicKey = getPublicKeyCA(certificate);
 		var privateKey = getPrivateKeyCA(caDir);
 
-		return new LicenseGenerator(certificate, publicKey, privateKey);
+		return new Licensor(certificate, publicKey, privateKey);
 	}
 
-	public File doLicensing(File library, LicenseInfo info, String password)
-			throws IOException {
+	public void license(ZipInputStream input, ZipOutputStream output, String pass,
+			LicenseInfo info) throws IOException {
 		keyPair = generateKeyPair();
+		var signer = new SignatureAgent.Signer(keyPair.getPrivate());
 
 		var certificate = createCertificate(info);
-		encryptIndices(library, password, keyPair.getPublic());
-		var signature = getSignature(library);
 		var authority = getAuthority();
 
-		var license = new License(certificate, signature, authority);
-		addLicenseToLibrary(license, library);
+		var zipEntry = input.getNextEntry();
+		while (zipEntry != null) {
+			if (INDICES.contains(zipEntry.getName() + ".bin")) {
+				var index = new File(zipEntry.getName() + ".enc");
+				try (var fos = new FileOutputStream(index)) {
+					Crypto.encrypt(pass, keyPair.getPublic().getEncoded(), input, fos);
+				}
+				try (var fis = new FileInputStream(index)) {
+					var indexEntry = new ZipEntry(index.getName());
+					signer.write(fis, indexEntry, output);
+				}
+			} else {
+				signer.write(input, zipEntry, output);
+			}
+			zipEntry = input.getNextEntry();
+		}
 
-		return library;
+		var signaturesAsBytes = signer.getSignatures();
+		var signature = new HashMap<String, String>();
+		signaturesAsBytes.forEach(
+				(key, value) -> signature.put(key, new String(Base64.encode(value))));
+		var license = new License(certificate, signature, authority);
+		writeLicenseToJson(license, output);
+	}
+
+	private void writeLicenseToJson(License license, ZipOutputStream output)
+			throws IOException {
+		var gson = new GsonBuilder().setPrettyPrinting().create();
+		var json = gson.toJson(license);
+		var jsonInput = new ByteArrayInputStream(json.getBytes());
+		var licenseEntry = new ZipEntry(JSON);
+		output.putNextEntry(licenseEntry);
+		var buffer = new byte[1024];
+		int length;
+		while((length = jsonInput.read(buffer)) >= 0) {
+			output.write(buffer, 0, length);
+		}
 	}
 
 	private String getAuthority() {
@@ -121,41 +155,6 @@ public class LicenseGenerator {
 			return CertificateGenerator.toBase64(authority);
 		} catch (CertificateException e) {
 			throw new RuntimeException(e);
-		}
-	}
-
-	private String getSignature(File library) throws IOException {
-		try {
-			var signature = SignAgent.signFolder(library, keyPair.getPrivate());
-
-			var publicKey = keyPair.getPublic();
-			if (!SignAgent.verifySignature(library, signature, publicKey)) {
-				throw new RuntimeException("The signature could not be verified.");
-			}
-			return new String(Base64.encode(signature));
-		} catch (SignatureException e) {
-			throw new RuntimeException(e);
-		}
-	}
-
-	private void addLicenseToLibrary(License license, File library)
-			throws IOException {
-		var gson = new Gson();
-		var json = gson.toJson(license);
-		var writer = new BufferedWriter(new FileWriter(new File(library, JSON)));
-		writer.write(json);
-		writer.close();
-	}
-
-	private void encryptIndices(File library, String pass, PublicKey publicKey)
-			throws IOException {
-		for (var name : INDICES) {
-			var input = new File(library, name + ".bin");
-			if (!input.exists())
-				continue;
-			var output = new File(library, name + ".enc");
-			Crypto.encrypt(pass, publicKey.getEncoded(), input, output);
-			Files.delete(input.toPath());
 		}
 	}
 
