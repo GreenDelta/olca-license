@@ -14,6 +14,7 @@ import org.bouncycastle.pkcs.PKCSException;
 import org.bouncycastle.util.encoders.Base64;
 import org.openlca.license.certificate.CertificateGenerator;
 import org.openlca.license.certificate.LicenseInfo;
+import org.openlca.license.signature.Signer;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
@@ -49,21 +50,14 @@ import java.util.zip.ZipOutputStream;
  * <p>
  * The licensing of a data library consists in three operations:
  *   <ol>
- *     <li>creation of a X509 certificate signed by the issuer certificate
+ *     <li>creation of a X.509 certificate signed by the issuer certificate
  *     authority with the information of the owner,</li>
  *     <li>symmetric encryption of the data indices with a key generated with
- *     the user password,</li>
+ *     the user password and certificate public key as salt,</li>
  *     <li>signature of the data library with the above-mentioned certificate
  *     private key.</li>
  *   </ol>
  * </p>
- * <p>
- * In order to sign a data library, one can use the following lines:
- * <p>
- * <code>
- * var generator = LicenseGenerator.getInstance(CertAuthFileInputStream);
- * var licensedLib = generator.doLicensing(libraryFIS, licenseInfo, password);
- * </code>
  */
 public class Licensor {
 
@@ -81,63 +75,117 @@ public class Licensor {
 	public final PublicKey publicKeyCA;
 
 	private KeyPair keyPair;
+	private Signer signer;
 
-	public Licensor(X509CertificateHolder ca, PublicKey publicKey,
+	private Licensor(X509CertificateHolder ca, PublicKey publicKey,
 			PrivateKey privateKey) {
 		certAuthority = ca;
 		publicKeyCA = publicKey;
 		privateKeyCA = privateKey;
 	}
 
-	public static Licensor getInstance(File caDir)
-			throws IOException {
-		var parser = getPEMParser(new File(caDir, caDir.getName() + ".crt"));
+	/**
+	 * <p>
+	 *   Construct a new instance of {@link Licensor} with a certificate authority
+	 *   as an input.
+	 * </p>
+	 * <p>
+	 *   The industrial standard for a CA file structure is as follow:
+	 *   <ul>
+	 *     <li>
+	 *       private
+	 *       <ul>
+	 *         <li>[folder name].key</li>
+	 *       </ul>
+	 *     </li>
+	 *     <li>[folder name].crt</li>
+	 *   </ul>
+	 * </p>
+	 */
+	public static Licensor getInstance(File ca) throws
+			IOException {
+		var certificateName = ca.getName() + ".crt";
+		var parser = getPEMParser(new File(ca, certificateName));
 		var certificate = (X509CertificateHolder) parser.readObject();
 
 		var publicKey = getPublicKeyCA(certificate);
-		var privateKey = getPrivateKeyCA(caDir);
+		var privateKey = getPrivateKeyCA(ca);
 
+		if (privateKey == null) {
+			throw new IOException("Error while getting the private key from the "
+					+ "certificate authority folder.");
+		}
 		return new Licensor(certificate, publicKey, privateKey);
 	}
 
+	/**
+	 * <p>
+	 *   Creates a license framework (certificate, signatures and encryption) from
+	 *   a data library.
+	 * </p>
+	 *
+	 * @param input the data library as a ZipIntutStream,
+	 * @param output the ZipOutputSteam on which the licensed data library is
+	 *               written,
+	 * @param pass the user password that is used to encrypt the data library
+	 *             indices,
+	 * @param info the information necessary to the creation of the certificate.
+	 */
 	public void license(ZipInputStream input, ZipOutputStream output, String pass,
 			LicenseInfo info) throws IOException {
 		keyPair = generateKeyPair();
-		var signer = new SignatureAgent.Signer(keyPair.getPrivate());
 
 		var certificate = createCertificate(info);
 		var authority = getAuthority();
+		signer = new Signer(keyPair.getPrivate());
 
 		var zipEntry = input.getNextEntry();
 		while (zipEntry != null) {
-			if (INDICES.contains(zipEntry.getName() + ".bin")) {
-				var index = new File(zipEntry.getName() + ".enc");
-				try (var fos = new FileOutputStream(index)) {
-					Crypto.encrypt(pass, keyPair.getPublic().getEncoded(), input, fos);
-				}
-				try (var fis = new FileInputStream(index)) {
-					var indexEntry = new ZipEntry(index.getName());
-					signer.write(fis, indexEntry, output);
-				}
-			} else {
-				signer.write(input, zipEntry, output);
-			}
+			processEntry(input, output, zipEntry, pass);
 			zipEntry = input.getNextEntry();
 		}
 
 		var signaturesAsBytes = signer.getSignatures();
-		var signature = new HashMap<String, String>();
+		var signatures = new HashMap<String, String>();
 		signaturesAsBytes.forEach(
-				(key, value) -> signature.put(key, new String(Base64.encode(value))));
-		var license = new License(certificate, signature, authority);
+				(key, value) -> signatures.put(key, new String(Base64.encode(value))));
+
+		var license = new License(certificate, signatures, authority);
 		writeLicenseToJson(license, output);
 	}
 
+	/**
+	 * Encrypts the designated files, signs and writes to the ZIP output the
+	 * designated ZIP entry.
+	 */
+	private void processEntry(ZipInputStream input, ZipOutputStream output,
+			ZipEntry entry, String pass) throws IOException {
+		if (INDICES.contains(entry.getName() + ".bin")) {
+			var index = new File(entry.getName() + ".enc");
+			try (var fos = new FileOutputStream(index)) {
+				Crypto.encrypt(pass, keyPair.getPublic().getEncoded(), input, fos);
+			}
+			try (var fis = new FileInputStream(index)) {
+				var indexEntry = new ZipEntry(index.getName());
+				output.putNextEntry(indexEntry);
+				signer.sign(fis, indexEntry.getName(), output);
+			}
+		} else {
+			output.putNextEntry(entry);
+			signer.sign(input, entry.getName(), output);
+		}
+	}
+
+	/**
+	 * Writes the {@link License} object to a JSON file saved into the library
+	 * folder.
+	 */
 	private void writeLicenseToJson(License license, ZipOutputStream output)
 			throws IOException {
 		var gson = new GsonBuilder().setPrettyPrinting().create();
 		var json = gson.toJson(license);
 		var jsonInput = new ByteArrayInputStream(json.getBytes());
+
 		var licenseEntry = new ZipEntry(JSON);
 		output.putNextEntry(licenseEntry);
 		var buffer = new byte[1024];
@@ -147,6 +195,9 @@ public class Licensor {
 		}
 	}
 
+	/**
+	 * Returns the Certificate Authority certificate encoded in Base64.
+	 */
 	private String getAuthority() {
 		try {
 			var authority = new JcaX509CertificateConverter()
@@ -158,6 +209,10 @@ public class Licensor {
 		}
 	}
 
+	/**
+	 * Creates a new certificate by calling the {@link CertificateGenerator}
+	 * instantiated with the certificate authority.
+	 */
 	public String createCertificate(LicenseInfo info) {
 		var keyPairCA = new KeyPair(publicKeyCA, privateKeyCA);
 		var generator = new CertificateGenerator(certAuthority, keyPairCA);
@@ -171,6 +226,9 @@ public class Licensor {
 		}
 	}
 
+	/**
+	 * Returns the {@link PublicKey} of a certificate.
+	 */
 	private static PublicKey getPublicKeyCA(X509CertificateHolder cert)
 			throws PEMException {
 		var publicKeyInfo = cert.getSubjectPublicKeyInfo();
@@ -178,6 +236,23 @@ public class Licensor {
 		return converter.getPublicKey(publicKeyInfo);
 	}
 
+	/**
+	 * Returns the {@link PrivateKey} from a certificate authority folder
+	 * structured in respect with the industry standard:
+	 * </p>
+	 * <p>
+	 *   The industrial standard for a CA file structure is as follow:
+	 *   <ul>
+	 *     <li>
+	 *       private
+	 *       <ul>
+	 *         <li>[folder name].key</li>
+	 *       </ul>
+	 *     </li>
+	 *     <li>[folder name].crt</li>
+	 *   </ul>
+	 * </p>
+	 */
 	private static PrivateKey getPrivateKeyCA(File caDir)
 			throws IOException {
 		var privateDir = new File(caDir, "private");
@@ -217,8 +292,6 @@ public class Licensor {
 
 	public static KeyPair generateKeyPair() {
 		try {
-			// Generate a new KeyPair and sign it using the CA private key by
-			// generating a CSR (Certificate Signing Request)
 			var keyPairGenerator = KeyPairGenerator.getInstance(KEY_ALGORITHM, BC);
 			keyPairGenerator.initialize(2048);
 			return keyPairGenerator.generateKeyPair();

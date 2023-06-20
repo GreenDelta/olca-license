@@ -1,10 +1,12 @@
-package org.openlca.license;
+package org.openlca.license.signature;
 
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.openlca.license.Licensor;
+import org.openlca.license.TestUtils;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -20,13 +22,13 @@ import java.util.zip.ZipOutputStream;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-public class TestSignatureAgent {
+public class TestSignature {
 
 	private File folder;
 	private KeyPair keyPair;
 	private File file1;
 	private File zip;
-	private SignatureAgent.Verifier verifier;
+	private Verifier verifier;
 
 	static {
 		Security.addProvider(new BouncyCastleProvider());
@@ -52,7 +54,7 @@ public class TestSignatureAgent {
 		TestUtils.zip(folder, zip);
 
 		keyPair = Licensor.generateKeyPair();
-		verifier = new SignatureAgent.Verifier(keyPair.getPublic(), signFolder());
+		verifier = new Verifier(keyPair.getPublic(), signFolder());
 	}
 
 	@Test
@@ -81,14 +83,15 @@ public class TestSignatureAgent {
 	}
 
 	private Map<String, byte[]> signFolder() throws IOException {
-		var signer = new SignatureAgent.Signer(keyPair.getPrivate());
+		var signer = new Signer(keyPair.getPrivate());
 
 		var signZip = tempFolder.newFile("sign.zip");
 		try (var input = new ZipInputStream(new FileInputStream(zip));
 				 var output = new ZipOutputStream(new FileOutputStream(signZip))) {
 			var zipEntry = input.getNextEntry();
 			while (zipEntry != null) {
-				signer.write(input, zipEntry, output);
+				output.putNextEntry(zipEntry);
+				signer.sign(input, zipEntry.getName(), output);
 				zipEntry = input.getNextEntry();
 			}
 		}

@@ -29,6 +29,32 @@ import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 
+/**
+ * <p>
+ *   The CertificateGenerator class is used to generate X.509 certificates. To
+ *   create an instance of this class, one must provide a certificate authority
+ *   certificate and key pair. To create a certificate, it is necessary to
+ *   provide a newly generated key pair and certificate information under a
+ *   <code>LicenseInfo</code> object.
+ * </p>
+ * <p></p>
+ * <p>
+ *   Create a certificate generator instance:
+ *   <code>
+ *     <p>var keyPairCA = new KeyPair(publicKeyCA, privateKeyCA);</p>
+ *     <p>var generator = new CertificateGenerator(certAuthority, keyPairCA);</p>
+ *   </code>
+ * </p>
+ * <p>
+ *   Generate a new certificate:
+ *   <code>
+ *     <p>var keyPairGenerator = KeyPairGenerator.getInstance(KEY_ALGORITHM, BC);</p>
+ * 		 <p>keyPairGenerator.initialize(2048);</p>
+ * 		 <p>var keyPair =  keyPairGenerator.generateKeyPair();</p>
+ *     <p>var x509certificate = generator.createCertificate(info, keyPair);</p>
+ *   </code></p>
+ * </p>
+ **/
 public class CertificateGenerator {
 
 	private static final String BC = "BC";
@@ -49,6 +75,11 @@ public class CertificateGenerator {
 		this.keyPairCA = keyPair;
 	}
 
+	/**
+	 * Generate a certificate by creating a CSR (Certificate Signing Request) with
+	 * the license information and the public key provided. The CSR is then signed
+	 * by the certificate authority.
+	 */
 	public X509Certificate createCertificate(LicenseInfo info, KeyPair keyPair) {
 		try {
 			var csr = createCSR(info, keyPair.getPublic());
@@ -73,6 +104,12 @@ public class CertificateGenerator {
 		}
 	}
 
+	/**
+	 * Adding extensions to the CSR:
+	 *  - type of certificate,
+	 *  - certificate authority information,
+	 *  - certificate usage.
+	 */
 	private void addExtensions(X509v3CertificateBuilder certBuilder,
 			PKCS10CertificationRequest csr) {
 		try {
@@ -82,17 +119,19 @@ public class CertificateGenerator {
 			certBuilder.addExtension(Extension.basicConstraints, true,
 					new BasicConstraints(false));
 
-			// Add issuer certificate identifier as Extension
+			// Add issuer key identifier as an Extension
 			var certCA = new JcaX509CertificateConverter().getCertificate(certAuth);
 			var authId = extensionUtils.createAuthorityKeyIdentifier(certCA);
 			var keyIdCA = Extension.authorityKeyIdentifier;
 			certBuilder.addExtension(keyIdCA, false, authId);
+
+			// Add subject key identifier as an Extension
 			var subjectId = extensionUtils.createSubjectKeyIdentifier(
 					csr.getSubjectPublicKeyInfo());
 			var keyIdSubject = Extension.subjectKeyIdentifier;
 			certBuilder.addExtension(keyIdSubject, false, subjectId);
 
-			// Add intended key usage extension if needed
+			// Add intended key usage Extension
 			var keyUsage = new KeyUsage(KeyUsage.digitalSignature);
 			certBuilder.addExtension(Extension.keyUsage, false, keyUsage);
 		} catch (NoSuchAlgorithmException | CertIOException | CertificateException e) {
@@ -101,6 +140,10 @@ public class CertificateGenerator {
 		}
 	}
 
+	/**
+	 * Lazily creates a CSR content signer built with the certificate authority
+	 * private key.
+	 */
 	private ContentSigner getCsrContentSigner() {
 		if (csrContentSigner == null) {
 			var csrBuilder = new JcaContentSignerBuilder(SIGNATURE_ALGORITHM);
@@ -133,10 +176,20 @@ public class CertificateGenerator {
 	private PKCS10CertificationRequest createCSR(LicenseInfo info, PublicKey
 			publicKey) {
 		var subject = info.subject().asX500Name();
-		var p10Builder = new JcaPKCS10CertificationRequestBuilder(subject, publicKey);
-		return p10Builder.build(getCsrContentSigner());
+		if (subject.getRDNs().length == 0) {
+			throw new RuntimeException("Error while processing the X500 name of the "
+					+ "license subject: " + info.subject().asRDNString());
+		}
+
+		var builder = new JcaPKCS10CertificationRequestBuilder(subject, publicKey);
+		var csrContentSigner = getCsrContentSigner();
+		return builder.build(csrContentSigner);
 	}
 
+	/**
+	 * Convert the certificate to Base64, the industry standard for SSL
+	 * certificate content.
+	 */
 	public static String toBase64(X509Certificate certificate)
 			throws CertificateEncodingException {
 		var bytes = certificate.getEncoded();

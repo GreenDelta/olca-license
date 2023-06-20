@@ -8,7 +8,16 @@ import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.Date;
 
-
+/**
+ * The LicenseInfo records data necessary to the creation or reading of a
+ * certificate.
+ * @param notBefore Date before which the certificate is not valid (to the
+ *                 second).
+ * @param notAfter Date after which the certificate is not valid (to the
+ *  *                 second).
+ * @param subject Owner of the certificate.
+ * @param issuer Authority that is signing the CSR to create the certificate.
+ */
 public record LicenseInfo(Date notBefore, Date notAfter, Person subject,
 													Person issuer) {
 
@@ -49,6 +58,10 @@ public record LicenseInfo(Date notBefore, Date notAfter, Person subject,
 		return notBeforeEqual && notAfterEqual && subjectEqual && issuerEqual;
 	}
 
+	/**
+	 * Check if the provided dates are equal to the second. This is necessary as
+	 * the certificate builder might round up the date to the second.
+	 */
 	private boolean areDateEqual(Date date1, Date date2) {
 		var diff = Math.abs(date1.getTime() - date2.getTime());
 		return diff < 1000;

@@ -9,6 +9,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.openlca.license.certificate.CertUtils;
 import org.openlca.license.certificate.LicenseInfo;
+import org.openlca.license.signature.Verifier;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -102,7 +103,7 @@ public class TestLicensor {
 
 		var publicKey = CertUtils.getPublicKey(new ByteArrayInputStream(certBytes));
 		var signatures = license.signaturesAsBytes();
-		var signAgent = new SignatureAgent.Verifier(publicKey, signatures);
+		var signAgent = new Verifier(publicKey, signatures);
 
 		List<Path> blackList = new ArrayList<>();
 		blackList.add(json.toPath());

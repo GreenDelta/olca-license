@@ -12,9 +12,20 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
 import java.security.spec.InvalidKeySpecException;
 
+/**
+ * <p>
+ *   The Crypto class is used to encrypt and decrypt InputStream. The encryption
+ *   is symmetric and the algorithm used is the AES/ECB.
+ * </p>
+ * <p>
+ *   This class is only composed of static methods and can simply be used as
+ *   follow:
+ * <p><code>
+ *   Crypto.[encrypt/decrypt](password, salt, input, output);
+ * </code></p>
+ */
 public class Crypto {
 
 	private static final String ALGORITHM = "AES";
@@ -57,13 +68,6 @@ public class Crypto {
 			throw new RuntimeException("Error while getting the secret key from the "
 					+ "password and salt.", e);
 		}
-	}
-
-	public static byte[] generateSalt() {
-		var random = new SecureRandom();
-		var salt = new byte[16];
-		random.nextBytes(salt);
-		return salt;
 	}
 
 	private static void doCrypto(Cipher cipher, InputStream in, OutputStream out)

@@ -12,8 +12,12 @@ import java.security.cert.X509Certificate;
 
 public class CertUtils {
 
-	public static PublicKey getPublicKey(InputStream inputStream)
-			throws IOException {
+	/**
+	 * Retrieve the public key from a certificate.
+	 * The certificate should be encoded in standard Base64.
+	 */
+	public static PublicKey getPublicKey(InputStream inputStream) throws
+			IOException {
 		try {
 			var cf = CertificateFactory.getInstance("X.509");
 

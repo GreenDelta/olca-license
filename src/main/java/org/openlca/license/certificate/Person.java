@@ -5,6 +5,19 @@ import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x500.style.BCStyle;
 import org.bouncycastle.asn1.x500.style.IETFUtils;
 
+/**
+ * <p>
+ * The Person records data specific to the X.500 directory service.
+ * </p>
+ *
+ * For example the following string representation of an X.500 entry:
+ * <p><code>cn=Rosanna Lee, e=lee.rosanna@sun.org, o=Sun, c=us</code>
+ * <code></p>
+ * can be created with:
+ * <p><code>
+ *   var person = new Person("Rosanna Lee", "US, "lee.rosanna@sun.org", "Sun);
+ * </code></p>
+ */
 public record Person(String commonName, String country, String email,
 										 String organisation) {
 
@@ -29,7 +42,7 @@ public record Person(String commonName, String country, String email,
 			return "";
 	}
 
-	private String asRDNString() {
+	public String asRDNString() {
 		return String.format("CN=%s,C=%s,E=%s,O=%s", commonName, country, email,
 				organisation);
 	}

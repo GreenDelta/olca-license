@@ -10,6 +10,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.security.SecureRandom;
 
 import static org.junit.Assert.assertArrayEquals;
 
@@ -42,7 +43,7 @@ public class TestCrypto {
 	@Test
 	public void testTransitivity() throws IOException {
 		var password = "password123";
-		var salt = Crypto.generateSalt();
+		var salt = generateSalt();
 
 		var encryptedFile = folder.newFile("test.encrypted");
 		var decryptedFile = folder.newFile("test.decrypted");
@@ -59,6 +60,13 @@ public class TestCrypto {
 
 		assertArrayEquals(Files.readAllBytes(inputFile.toPath()),
 				Files.readAllBytes(decryptedFile.toPath()));
+	}
+
+	public static byte[] generateSalt() {
+		var random = new SecureRandom();
+		var salt = new byte[16];
+		random.nextBytes(salt);
+		return salt;
 	}
 
 }
