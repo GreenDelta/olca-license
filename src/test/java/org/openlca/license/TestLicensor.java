@@ -16,7 +16,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
@@ -36,23 +35,14 @@ public class TestLicensor {
 
 	private File ca;
 	private static final String PASSWORD_LIB = "passlib123";
-	private static final String PASSWORD_CA = "passca123";
 
 	@Rule
 	public TemporaryFolder tempFolder = new TemporaryFolder();
 
 	@Before
-	public void initializeCertificateAuthority() throws IOException,
-			URISyntaxException {
+	public void initializeCertificateAuthority() throws URISyntaxException {
 		var caURL = getClass().getResource("nexus-ca");
-
 		ca = new File(Objects.requireNonNull(caURL).toURI());
-
-		// Add password file
-		var pass = new File(ca, ca.getName() + ".pass");
-		var fileWriter = new FileWriter(pass);
-		fileWriter.write(PASSWORD_CA);
-		fileWriter.close();
 	}
 
 	@Test

@@ -20,7 +20,7 @@ echo 1001 >db/crlnumber
 # private: store the private keys
 
 printf "\nCreate the private key and the CSR...\n"
-openssl req -new -config root-ca.conf -out root-ca.csr \
+openssl req -new -nodes -config root-ca.conf -out root-ca.csr \
   -keyout private/root-ca.key
 
 printf "\nCreate the self-signed certificate...\n"

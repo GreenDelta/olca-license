@@ -20,7 +20,7 @@ echo 1001 > db/crlnumber
 # private: store the private keys
 
 printf "\nCreating the Nexus CA private key and CSR..."
-openssl req -new -config nexus-ca.conf -out nexus-ca.csr \
+openssl req -new -nodes -config nexus-ca.conf -out nexus-ca.csr \
  -keyout private/nexus-ca.key
 
 printf "\nCreating the Nexus CA certificate..."

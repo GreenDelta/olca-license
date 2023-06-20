@@ -1,28 +1,23 @@
 package org.openlca.license;
 
 import com.google.gson.GsonBuilder;
+import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openssl.PEMException;
 import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
-import org.bouncycastle.openssl.jcajce.JceOpenSSLPKCS8DecryptorProviderBuilder;
-import org.bouncycastle.operator.OperatorCreationException;
-import org.bouncycastle.pkcs.PKCS8EncryptedPrivateKeyInfo;
-import org.bouncycastle.pkcs.PKCSException;
 import org.bouncycastle.util.encoders.Base64;
 import org.openlca.license.certificate.CertificateGenerator;
 import org.openlca.license.certificate.LicenseInfo;
 import org.openlca.license.signature.Signer;
 
-import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.security.KeyPair;
@@ -253,35 +248,16 @@ public class Licensor {
 	 *   </ul>
 	 * </p>
 	 */
-	private static PrivateKey getPrivateKeyCA(File caDir)
+	private static PrivateKey getPrivateKeyCA(File ca)
 			throws IOException {
-		var privateDir = new File(caDir, "private");
-		var keyName = caDir.getName() + ".key";
+		var privateDir = new File(ca, "private");
+		var keyName = ca.getName() + ".key";
 		var parser = getPEMParser(new File(privateDir, keyName));
-		var password = getPassword(caDir);
 
 		var converter = new JcaPEMKeyConverter();
-		if (parser.readObject() instanceof PKCS8EncryptedPrivateKeyInfo keyInfo) {
-			// Encrypted key - we will use provided password
-			try {
-				var decryptProvider = new JceOpenSSLPKCS8DecryptorProviderBuilder()
-						.setProvider(BC)
-						.build(password);
-				var privateKeyInfo = keyInfo.decryptPrivateKeyInfo(decryptProvider);
-				return converter.getPrivateKey(privateKeyInfo);
-			} catch (OperatorCreationException | PKCSException e) {
-				throw new RuntimeException("Error while reading the private key of the "
-						+ "certificate authority.", e);
-			}
-		}
-		return null;
-	}
-
-	private static char[] getPassword(File caDir) throws IOException {
-		var passFile = new File(caDir, caDir.getName() + ".pass");
-		var buffer = new BufferedReader(new FileReader(passFile));
-		var password = buffer.readLine();
-		return password.toCharArray();
+		if (parser.readObject() instanceof PrivateKeyInfo keyInfo)
+			return converter.getPrivateKey(keyInfo);
+		else return  null;
 	}
 
 	public static PEMParser getPEMParser(File file) throws FileNotFoundException {
