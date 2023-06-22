@@ -19,7 +19,7 @@ import java.util.Map;
 public class Signer {
 
 	public static final String ALGORITHM = "SHA256withRSA";
-	public static final int BUFFER_SIZE = 1024;
+	public static final int BUFFER_SIZE = 8192;
 
 	private final Signature agent;
 	private final Map<String, byte[]> signatures;
@@ -55,7 +55,7 @@ public class Signer {
 				out.write(buffer, 0, length);
 			}
 			try {
-				agent.update(buffer);
+				agent.update(buffer, 0, length);
 			} catch (SignatureException e) {
 				throw new RuntimeException("Error while signing the following entry: "
 						+ name, e);

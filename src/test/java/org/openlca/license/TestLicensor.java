@@ -79,7 +79,6 @@ public class TestLicensor {
 		}
 
 		var json = new File(libraryFolder, JSON);
-		TestUtils.extractFile(library, JSON, new FileOutputStream(json));
 		assertTrue(json.exists());
 
 		var reader = new JsonReader(new FileReader(json));

@@ -14,10 +14,10 @@ import org.openlca.license.certificate.LicenseInfo;
 import org.openlca.license.signature.Signer;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.security.KeyPair;
@@ -59,7 +59,10 @@ public class Licensor {
 	private static final String BC = "BC";
 	private static final String KEY_ALGORITHM = "RSA";
 	public static final String JSON = "license.json";
-	public static List<String> INDICES = List.of("index_A", "index_B", "index_C");
+	public static List<String> INDICES = List.of("index_A.bin", "index_B.bin",
+			"index_C.bin");
+	public static final int BUFFER_SIZE = 8192;
+
 
 	static {
 		Security.addProvider(new BouncyCastleProvider());
@@ -118,6 +121,9 @@ public class Licensor {
 	 *   Creates a license framework (certificate, signatures and encryption) from
 	 *   a data library.
 	 * </p>
+	 * <p>
+	 *   The ZIP streams should be created with a 'try'-with-resources statement.
+	 * </p>
 	 *
 	 * @param input the data library as a ZipIntutStream,
 	 * @param output the ZipOutputSteam on which the licensed data library is
@@ -155,19 +161,22 @@ public class Licensor {
 	 */
 	private void processEntry(ZipInputStream input, ZipOutputStream output,
 			ZipEntry entry, String pass) throws IOException {
-		if (INDICES.contains(entry.getName() + ".bin")) {
-			var index = new File(entry.getName() + ".enc");
-			try (var fos = new FileOutputStream(index)) {
-				Crypto.encrypt(pass, keyPair.getPublic().getEncoded(), input, fos);
-			}
-			try (var fis = new FileInputStream(index)) {
-				var indexEntry = new ZipEntry(index.getName());
-				output.putNextEntry(indexEntry);
-				signer.sign(fis, indexEntry.getName(), output);
-			}
+		var name = entry.getName();
+		if (INDICES.contains(name)) {
+			// encrypting the index file
+			var bos = new ByteArrayOutputStream();
+			Crypto.encrypt(pass, keyPair.getPublic().getEncoded(), input, bos);
+
+			// signing the encrypted index with a new ZipEntry
+			var baseName = name.substring(0, name.length() - ".bin".length());
+			var indexEntry = new ZipEntry(baseName + ".enc");
+			output.putNextEntry(indexEntry);
+			var bytes = bos.toByteArray();
+			var bis = new ByteArrayInputStream(bytes);
+			signer.sign(bis, indexEntry.getName(), output);
 		} else {
 			output.putNextEntry(entry);
-			signer.sign(input, entry.getName(), output);
+			signer.sign(input, name, output);
 		}
 	}
 
@@ -183,7 +192,7 @@ public class Licensor {
 
 		var licenseEntry = new ZipEntry(JSON);
 		output.putNextEntry(licenseEntry);
-		var buffer = new byte[1024];
+		var buffer = new byte[BUFFER_SIZE];
 		int length;
 		while((length = jsonInput.read(buffer)) >= 0) {
 			output.write(buffer, 0, length);

@@ -56,13 +56,23 @@ public class Verifier {
 	 *                  signature check (useful if the signature file is in the
 	 *                  folder).
 	 */
-	public boolean verify(File folder, List<Path> blacklist) throws
-			IOException {
-		if (!signatures.keySet().stream()
+	public boolean verify(File folder, List<Path> blacklist) throws IOException {
+		// Check if none of the signed files is blacklisted
+		var fileNames = signatures.keySet();
+		if (blacklist.stream()
+				.map(Path::getFileName)
+				.map(Path::toString)
+				.anyMatch(fileNames::contains)) {
+			return false;
+		}
+
+		// Check if all the signed files exist
+		if (signatures.keySet().stream()
 				.map(name -> new File(folder, name))
-				.allMatch(File::exists))
+				.anyMatch(Predicate.not(File::exists)))
 			return false;
 
+		// Verify all the signature
 		try (var walk = Files.walk(folder.toPath())) {
 			return walk
 					.filter(Files::isRegularFile)
@@ -89,8 +99,9 @@ public class Verifier {
 
 		try (var fis = new FileInputStream(path.toFile())) {
 			var buffer = new byte[BUFFER_SIZE];
-			while ((fis.read(buffer)) >= 0) {
-				agent.update(buffer);
+			int lenght;
+			while ((lenght = fis.read(buffer)) >= 0) {
+				agent.update(buffer, 0, lenght);
 			}
 			return agent.verify(signature);
 		} catch (SignatureException | IOException e) {

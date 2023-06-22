@@ -31,6 +31,7 @@ public class Crypto {
 	private static final String ALGORITHM = "AES";
 	private static final String TRANSFORMATION = "AES/ECB/PKCS5Padding";
 	private static final String HASH = "PBKDF2WithHmacSHA1";
+	public static final int BUFFER_SIZE = 8192;
 
 	public static void encrypt(String password, byte[] salt, InputStream in,
 			OutputStream out) throws IOException {
@@ -72,7 +73,7 @@ public class Crypto {
 
 	private static void doCrypto(Cipher cipher, InputStream in, OutputStream out)
 			throws IOException {
-		var buffer = new byte[1024];
+		var buffer = new byte[BUFFER_SIZE];
 		int len;
 		while ((len = in.read(buffer)) != -1) {
 			var result = cipher.update(buffer, 0, len);

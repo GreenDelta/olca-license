@@ -25,6 +25,8 @@ import java.util.zip.ZipOutputStream;
 
 public class TestUtils {
 
+	public static final int BUFFER_SIZE = 8192;
+
 	public static LicenseInfo getTestLicenseInfo() {
 		var calendar = Calendar.getInstance();
 		calendar.set(2021, Calendar.JULY, 20, 21, 37, 0);
@@ -78,7 +80,7 @@ public class TestUtils {
 		var zipEntry = new ZipEntry(name);
 		zipOut.putNextEntry(zipEntry);
 
-		var bytes = new byte[1024];
+		var bytes = new byte[BUFFER_SIZE];
 		int length;
 		while ((length = fis.read(bytes)) >= 0) {
 			zipOut.write(bytes, 0, length);
@@ -101,7 +103,7 @@ public class TestUtils {
 				continue;
 			}
 
-			var buffer = new byte[1024];
+			var buffer = new byte[BUFFER_SIZE];
 			file.getParentFile().mkdirs();
 			try (var out = new BufferedOutputStream(new FileOutputStream(file))) {
 				int count;
@@ -135,7 +137,7 @@ public class TestUtils {
 			ZipEntry ze;
 			while ((ze = zin.getNextEntry()) != null) {
 				if (ze.getName().equals(fileName)) {
-					var buffer = new byte[1024];
+					var buffer = new byte[BUFFER_SIZE];
 					int len;
 					while ((len = zin.read(buffer)) != -1) {
 						out.write(buffer, 0, len);
