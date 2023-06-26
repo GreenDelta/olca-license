@@ -29,34 +29,20 @@ import java.security.spec.InvalidKeySpecException;
 public class Crypto {
 
 	private static final String ALGORITHM = "AES";
-	private static final String TRANSFORMATION = "AES/ECB/PKCS5Padding";
+	public static final String TRANSFORMATION = "AES/ECB/PKCS5Padding";
 	private static final String HASH = "PBKDF2WithHmacSHA1";
 	public static final int BUFFER_SIZE = 8192;
 
 	public static void encrypt(char[] password, byte[] salt, InputStream in,
 			OutputStream out) throws IOException, BadPaddingException {
-		var key = getKeyFromPassword(password, salt);
-		try {
-			var cipher = Cipher.getInstance(TRANSFORMATION);
-			cipher.init(Cipher.ENCRYPT_MODE, key);
-			doCrypto(cipher, in, out);
-		} catch (NoSuchAlgorithmException | NoSuchPaddingException |
-						 InvalidKeyException e) {
-			throw new RuntimeException("Error while encrypting.", e);
-		}
+		var cipher = getCipher(Cipher.ENCRYPT_MODE, password, salt);
+		doCrypto(cipher, in, out);
 	}
 
 	public static void decrypt(char[] password, byte[] salt, InputStream in,
 			OutputStream out) throws IOException, BadPaddingException {
-		var key = getKeyFromPassword(password, salt);
-		try {
-			var cipher = Cipher.getInstance(TRANSFORMATION);
-			cipher.init(Cipher.DECRYPT_MODE, key);
-			doCrypto(cipher, in, out);
-		} catch (NoSuchAlgorithmException | NoSuchPaddingException |
-						 InvalidKeyException e) {
-			throw new RuntimeException("Error while decrypting.", e);
-		}
+		var cipher = getCipher(Cipher.DECRYPT_MODE, password, salt);
+		doCrypto(cipher, in, out);
 	}
 
 	private static SecretKeySpec getKeyFromPassword(char[] pass, byte[] salt) {
@@ -89,6 +75,20 @@ public class Crypto {
 			}
 		} catch (IllegalBlockSizeException e) {
 			throw new RuntimeException(e);
+		}
+	}
+
+	public static Cipher getCipher(int mode, char[] password, byte[] salt) {
+		var key = getKeyFromPassword(password, salt);
+		try {
+			var cipher = Cipher.getInstance(TRANSFORMATION);
+			cipher.init(mode, key);
+			return cipher;
+		} catch (NoSuchAlgorithmException | NoSuchPaddingException |
+						 InvalidKeyException e) {
+			var verbose = mode == Cipher.DECRYPT_MODE ? "decrypting" : "encrypting";
+			throw new RuntimeException("Error while creating the " + verbose
+					+ " cipher.", e);
 		}
 	}
 

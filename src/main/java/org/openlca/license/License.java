@@ -9,6 +9,7 @@ import org.openlca.license.certificate.CertificateInfo;
 import org.openlca.license.signature.Verifier;
 
 import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -96,6 +97,7 @@ public record License(String certificate, Map<String, String> signatures,
 		}
 
 		var signAgent = getSignatureVerifier();
+
 		if (!signAgent.verify(library, blacklist))
 			return LicenseStatus.CORRUPTED;
 
@@ -137,6 +139,11 @@ public record License(String certificate, Map<String, String> signatures,
 		}
 
 		return true;
+	}
+
+	public Cipher getDecryptCipher(char[] password) {
+		var salt = getCertificatePublicKey().getEncoded();
+		return Crypto.getCipher(Cipher.DECRYPT_MODE, password, salt);
 	}
 
 }
