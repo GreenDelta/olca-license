@@ -33,8 +33,8 @@ public class Crypto {
 	private static final String HASH = "PBKDF2WithHmacSHA1";
 	public static final int BUFFER_SIZE = 8192;
 
-	public static void encrypt(String password, byte[] salt, InputStream in,
-			OutputStream out) throws IOException {
+	public static void encrypt(char[] password, byte[] salt, InputStream in,
+			OutputStream out) throws IOException, BadPaddingException {
 		var key = getKeyFromPassword(password, salt);
 		try {
 			var cipher = Cipher.getInstance(TRANSFORMATION);
@@ -46,8 +46,8 @@ public class Crypto {
 		}
 	}
 
-	public static void decrypt(String password, byte[] salt, InputStream in,
-			OutputStream out) throws IOException {
+	public static void decrypt(char[] password, byte[] salt, InputStream in,
+			OutputStream out) throws IOException, BadPaddingException {
 		var key = getKeyFromPassword(password, salt);
 		try {
 			var cipher = Cipher.getInstance(TRANSFORMATION);
@@ -59,8 +59,8 @@ public class Crypto {
 		}
 	}
 
-	private static SecretKeySpec getKeyFromPassword(String pass, byte[] salt) {
-		var spec = new PBEKeySpec(pass.toCharArray(), salt, 65536, 128);
+	private static SecretKeySpec getKeyFromPassword(char[] pass, byte[] salt) {
+		var spec = new PBEKeySpec(pass, salt, 65536, 128);
 		try {
 			var factory = SecretKeyFactory.getInstance(HASH);
 			var encoded = factory.generateSecret(spec).getEncoded();
@@ -72,7 +72,7 @@ public class Crypto {
 	}
 
 	private static void doCrypto(Cipher cipher, InputStream in, OutputStream out)
-			throws IOException {
+			throws IOException, BadPaddingException {
 		var buffer = new byte[BUFFER_SIZE];
 		int len;
 		while ((len = in.read(buffer)) != -1) {
@@ -87,7 +87,7 @@ public class Crypto {
 			if (result != null) {
 				out.write(result);
 			}
-		} catch (IllegalBlockSizeException | BadPaddingException e) {
+		} catch (IllegalBlockSizeException e) {
 			throw new RuntimeException(e);
 		}
 	}

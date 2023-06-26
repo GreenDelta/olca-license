@@ -5,6 +5,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import javax.crypto.BadPaddingException;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -41,7 +42,7 @@ public class TestCrypto {
 	}
 
 	@Test
-	public void testTransitivity() throws IOException {
+	public void testTransitivity() throws IOException, BadPaddingException {
 		var password = "password123";
 		var salt = generateSalt();
 
@@ -50,12 +51,12 @@ public class TestCrypto {
 
 		try (var in = new FileInputStream(inputFile);
 				 var out = new FileOutputStream(encryptedFile)) {
-			Crypto.encrypt(password, salt, in, out);
+			Crypto.encrypt(password.toCharArray(), salt, in, out);
 		}
 
 		try (var in = new FileInputStream(encryptedFile);
 				 var out = new FileOutputStream(decryptedFile)) {
-			Crypto.decrypt(password, salt, in, out);
+			Crypto.decrypt(password.toCharArray(), salt, in, out);
 		}
 
 		assertArrayEquals(Files.readAllBytes(inputFile.toPath()),

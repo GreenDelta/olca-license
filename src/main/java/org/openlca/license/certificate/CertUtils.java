@@ -1,9 +1,9 @@
 package org.openlca.license.certificate;
 
 import org.bouncycastle.cert.jcajce.JcaX509CertificateHolder;
+import org.bouncycastle.openssl.PEMException;
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.security.PublicKey;
 import java.security.cert.CertificateException;
@@ -16,8 +16,7 @@ public class CertUtils {
 	 * Retrieve the public key from a certificate.
 	 * The certificate should be encoded in standard Base64.
 	 */
-	public static PublicKey getPublicKey(InputStream inputStream) throws
-			IOException {
+	public static PublicKey getPublicKey(InputStream inputStream) {
 		try {
 			var cf = CertificateFactory.getInstance("X.509");
 
@@ -25,7 +24,7 @@ public class CertUtils {
 			var holder = new JcaX509CertificateHolder(cert);
 			var converter = new JcaPEMKeyConverter();
 			return converter.getPublicKey(holder.getSubjectPublicKeyInfo());
-		} catch (CertificateException e) {
+		} catch (CertificateException | PEMException e) {
 			throw new RuntimeException("Error while getting the public key.", e);
 		}
 	}

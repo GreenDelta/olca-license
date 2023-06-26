@@ -105,8 +105,8 @@ public class Verifier {
 			}
 			return agent.verify(signature);
 		} catch (SignatureException | IOException e) {
-			throw new RuntimeException("Error while signing the following file: "
-					+ fileName, e);
+			throw new RuntimeException("Error while verifying the signature of the "
+					+ "following file: " + fileName, e);
 		}
 	}
 

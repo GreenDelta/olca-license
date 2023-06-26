@@ -22,7 +22,7 @@ var licensor = Licensor.getInstance(ca);
 
 Then, certify the library by inputting the `ZipInputStream` of the compressed
 raw library, the destination `ZipOutputStream`, the password provided by the
-user of the library and the `LicenseInfo` object holding the start and
+user of the library and the `CertificateInfo` object holding the start and
 expiration date and the subject and issuer information:
 
 ```java

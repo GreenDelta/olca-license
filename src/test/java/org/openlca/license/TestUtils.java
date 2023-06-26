@@ -1,6 +1,6 @@
 package org.openlca.license;
 
-import org.openlca.license.certificate.LicenseInfo;
+import org.openlca.license.certificate.CertificateInfo;
 import org.openlca.license.certificate.Person;
 
 import java.io.BufferedInputStream;
@@ -27,19 +27,46 @@ public class TestUtils {
 
 	public static final int BUFFER_SIZE = 8192;
 
-	public static LicenseInfo getTestLicenseInfo() {
+	public static CertificateInfo getExpiredCertificateInfo() {
 		var calendar = Calendar.getInstance();
 		calendar.set(2021, Calendar.JULY, 20, 21, 37, 0);
 		var startDate = calendar.getTime();
 		calendar.add(Calendar.YEAR, 1);
 		var endDate = calendar.getTime();
 
-		var subject = new Person("John Doe", "US",
-				"john@green-company.com", "Green Company");
-		var caPerson = new Person("Nexus CA", "DE", "", "Green Delta");
-
-		return new LicenseInfo(startDate, endDate, subject, caPerson);
+		return new CertificateInfo(startDate, endDate, getSubject(), getIssuer());
 	}
+
+	public static CertificateInfo getValidCertificateInfo() {
+		var calendar = Calendar.getInstance();
+		calendar.add(Calendar.MONTH, -1);
+		var startDate = calendar.getTime();
+		calendar.add(Calendar.YEAR, 1);
+		var endDate = calendar.getTime();
+
+		return new CertificateInfo(startDate, endDate, getSubject(), getIssuer());
+	}
+
+	public static CertificateInfo getNotYetValidCertificateInfo() {
+		var calendar = Calendar.getInstance();
+		calendar.add(Calendar.MONTH, 1);
+		var startDate = calendar.getTime();
+		calendar.add(Calendar.YEAR, 1);
+		var endDate = calendar.getTime();
+
+		return new CertificateInfo(startDate, endDate, getSubject(), getIssuer());
+	}
+
+	private static Person getSubject() {
+		return new Person("John Doe", "US", "john@green-company.com",
+				"Green Company");
+	}
+
+	private static Person getIssuer() {
+		return new Person("Nexus CA", "DE", "", "Green Delta");
+	}
+
+
 
 	public static ZipInputStream createTestLibrary(File file) throws IOException,
 			URISyntaxException {

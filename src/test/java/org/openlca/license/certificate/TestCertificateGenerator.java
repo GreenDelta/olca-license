@@ -29,7 +29,7 @@ public class TestCertificateGenerator {
 		var keyPairCA = keyPairGenerator.generateKeyPair();
 		var certAuth = getTestCertAuth();
 		var generator = new CertificateGenerator(certAuth, keyPairCA);
-		var info = TestUtils.getTestLicenseInfo();
+		var info = TestUtils.getExpiredCertificateInfo();
 		var keyPair = Licensor.generateKeyPair();
 		var certificate = generator.createCertificate(info, keyPair);
 

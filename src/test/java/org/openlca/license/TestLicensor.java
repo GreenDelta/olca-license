@@ -1,40 +1,29 @@
 package org.openlca.license;
 
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
-import com.google.gson.stream.JsonReader;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.openlca.license.certificate.CertUtils;
-import org.openlca.license.certificate.LicenseInfo;
-import org.openlca.license.signature.Verifier;
+import org.openlca.license.certificate.CertificateInfo;
 
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.FileReader;
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.Date;
-import java.util.List;
 import java.util.Objects;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
 import static org.junit.Assert.*;
-import static org.openlca.license.Licensor.JSON;
-import static org.openlca.license.TestUtils.getTestLicenseInfo;
+import static org.openlca.license.TestUtils.*;
 
 
 public class TestLicensor {
 
 	private File ca;
-	private static final String PASSWORD_LIB = "passlib123";
+	private static final char[] PASSWORD_LIB = "passlib123".toCharArray();
 
 	@Rule
 	public TemporaryFolder tempFolder = new TemporaryFolder();
@@ -45,9 +34,26 @@ public class TestLicensor {
 		ca = new File(Objects.requireNonNull(caURL).toURI());
 	}
 
+	private File initLibrary(CertificateInfo info) throws IOException,
+			URISyntaxException {
+		var rawLibrary = tempFolder.newFile("raw.zlib");
+		var library = tempFolder.newFile("library.zlib");
+		var licensor = Licensor.getInstance(ca);
+
+		try (var input = TestUtils.createTestLibrary(rawLibrary);
+				 var output = new ZipOutputStream(new FileOutputStream(library))) {
+			licensor.license(input, output, PASSWORD_LIB, info);
+		}
+
+		var libraryFolder = tempFolder.newFolder("library");
+		try (var zip = new ZipInputStream(new FileInputStream(library))) {
+			TestUtils.extract(zip, libraryFolder);
+		}
+		return libraryFolder;
+	}
+
 	@Test
-	public void testCreateLicenseGeneratorInstance()
-			throws IOException {
+	public void testCreateLicensorInstance() throws IOException {
 		var generator = Licensor.getInstance(ca);
 
 		assertNotNull(generator);
@@ -60,43 +66,83 @@ public class TestLicensor {
 	}
 
 	@Test
-	public void testCreateLicensedLibrary() throws IOException,
-			URISyntaxException {
-		var rawLibrary = tempFolder.newFile("raw.zlib");
-		var library = tempFolder.newFile("library.zlib");
+	public void testCertificateInfo() throws IOException, URISyntaxException {
+		var info = getValidCertificateInfo();
+		var libraryFolder = initLibrary(info);
+		var license = License.of(libraryFolder);
 
-		var info = getTestLicenseInfo();
+		var certificateInfo = license.getInfo();
+		assertEquals(info, certificateInfo);
+	}
 
-		try (var input = TestUtils.createTestLibrary(rawLibrary);
-				 var output = new ZipOutputStream(new FileOutputStream(library))) {
-			var licensor = Licensor.getInstance(ca);
+	@Test
+	public void testSignatureStatus() throws IOException, URISyntaxException {
+		var info = getValidCertificateInfo();
+		var libraryFolder = initLibrary(info);
+
+		// Adding a file to make the signature check fail
+		var file = new File(libraryFolder, "file");
+		file.createNewFile();
+
+		var license = License.of(libraryFolder);
+		var email = info.subject().email();
+		var status = license.status(libraryFolder, email, PASSWORD_LIB);
+		assertEquals(LicenseStatus.CORRUPTED, status);
+	}
+
+	@Test
+	public void testExpiredStatus() throws IOException, URISyntaxException {
+		var info = getExpiredCertificateInfo();
+		var libraryFolder = initLibrary(info);
+		var license = License.of(libraryFolder);
+
+		var email = info.subject().email();
+		var status = license.status(libraryFolder, email, PASSWORD_LIB);
+		assertEquals(LicenseStatus.EXPIRED, status);
+	}
+
+	@Test
+	public void testStatusNotYetValid() throws IOException, URISyntaxException {
+		var info = getNotYetValidCertificateInfo();
+		var libraryFolder = initLibrary(info);
+		var license = License.of(libraryFolder);
+
+		var email = info.subject().email();
+		var status = license.status(libraryFolder, email, PASSWORD_LIB);
+		assertEquals(LicenseStatus.NOT_YET_VALID, status);
+	}
+
+	@Test
+	public void testStatusWrongEmail() throws IOException, URISyntaxException {
+		var info = getValidCertificateInfo();
+		var libraryFolder = initLibrary(info);
+		var license = License.of(libraryFolder);
+
+		var email = "wrong email";
+		var status = license.status(libraryFolder, email, PASSWORD_LIB);
+		assertEquals(LicenseStatus.WRONG_USER, status);
+	}
+
+	@Test
+	public void testStatusWrongPassword() throws IOException, URISyntaxException {
+		var info = getValidCertificateInfo();
+		var libraryFolder = initLibrary(info);
+		var license = License.of(libraryFolder);
+
+		var email = info.subject().email();
+		var password = "wrongpassword".toCharArray();
+		var status = license.status(libraryFolder, email, password);
+		assertEquals(LicenseStatus.WRONG_PASSWORD, status);
+	}
+
+	public void testLicenseLibrary() throws IOException {
+		var licensor = Licensor.getInstance(ca);
+		var info = getExpiredCertificateInfo();
+
+		try (var input = new ZipInputStream(new FileInputStream("agribalib.zip"));
+				 var output = new ZipOutputStream(new FileOutputStream("agribalib.zlib"))) {
 			licensor.license(input, output, PASSWORD_LIB, info);
 		}
-
-		var libraryFolder = tempFolder.newFolder("library");
-		try (var zip = new ZipInputStream(new FileInputStream(library))) {
-			TestUtils.extract(zip, libraryFolder);
-		}
-
-		var json = new File(libraryFolder, JSON);
-		assertTrue(json.exists());
-
-		var reader = new JsonReader(new FileReader(json));
-		var gson = new Gson();
-		var mapType = new TypeToken<License>() {}.getType();
-		License license = gson.fromJson(reader, mapType);
-
-		var certBytes = license.certificate().getBytes();
-		var licenseInfo = LicenseInfo.of(new ByteArrayInputStream(certBytes));
-		assertEquals(info, licenseInfo);
-
-		var publicKey = CertUtils.getPublicKey(new ByteArrayInputStream(certBytes));
-		var signatures = license.signaturesAsBytes();
-		var signAgent = new Verifier(publicKey, signatures);
-
-		List<Path> blackList = new ArrayList<>();
-		blackList.add(json.toPath());
-		assertTrue(signAgent.verify(libraryFolder, blackList));
 	}
 
 }

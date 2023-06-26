@@ -5,14 +5,13 @@ import org.junit.Test;
 import org.openlca.license.TestUtils;
 
 import java.io.IOException;
-import java.security.cert.CertificateException;
 import java.util.Calendar;
 import java.util.Objects;
 
 import static org.junit.Assert.*;
 
 
-public class TestLicenseInfo {
+public class TestCertificateInfo {
 
 	@Test
 	public void testPersonOf() {
@@ -31,58 +30,57 @@ public class TestLicenseInfo {
 
 	@Test
 	public void testEqualDate() {
-		var i = TestUtils.getTestLicenseInfo();
+		var i = TestUtils.getExpiredCertificateInfo();
 
 		var calendar = Calendar.getInstance();
 
 		calendar.setTime(i.notBefore());
 		calendar.add(Calendar.YEAR, 1);
-		assertNotEquals(i, new LicenseInfo(calendar.getTime(), i.notAfter(),
+		assertNotEquals(i, new CertificateInfo(calendar.getTime(), i.notAfter(),
 				i.subject(), i.issuer()));
 
 		calendar.setTime(i.notAfter());
 		calendar.add(Calendar.MINUTE, 1);
-		assertNotEquals(i, new LicenseInfo(i.notBefore(), calendar.getTime(),
+		assertNotEquals(i, new CertificateInfo(i.notBefore(), calendar.getTime(),
 				i.subject(), i.issuer()));
 
 		calendar.setTime(i.notAfter());
 		calendar.add(Calendar.MILLISECOND, 1);
-		assertEquals(i, new LicenseInfo(i.notBefore(), calendar.getTime(),
+		assertEquals(i, new CertificateInfo(i.notBefore(), calendar.getTime(),
 				i.subject(), i.issuer()));
 	}
 
 	@Test
 	public void testEqualPeople() {
-		var i = TestUtils.getTestLicenseInfo();
+		var i = TestUtils.getExpiredCertificateInfo();
 		// inverting subject and issuer
-		assertNotEquals(i, new LicenseInfo(i.notBefore(), i.notAfter(), i.issuer(),
+		assertNotEquals(i, new CertificateInfo(i.notBefore(), i.notAfter(), i.issuer(),
 				i.subject()));
 	}
 
 	@Test
 	public void testEqual() {
-		var info1 = TestUtils.getTestLicenseInfo();
-		var info2 = TestUtils.getTestLicenseInfo();
+		var info1 = TestUtils.getExpiredCertificateInfo();
+		var info2 = TestUtils.getExpiredCertificateInfo();
 		assertEquals(info1, info2);
 	}
 
 
 	@Test
-	public void testReadLicense()
-			throws CertificateException, IOException {
+	public void testReadLicense() throws IOException {
 		var certName = "test.crt";
 		var certURL = getClass().getResource(certName);
-		var info = LicenseInfo.of(Objects.requireNonNull(certURL).openStream());
-		var expectedInfo = TestUtils.getTestLicenseInfo();
+		var info = CertificateInfo.of(Objects.requireNonNull(certURL).openStream());
+		var expectedInfo = TestUtils.getExpiredCertificateInfo();
 
 		assertEquals(expectedInfo, info);
 	}
 
 	@Test
-	public void testValid() throws IOException, CertificateException {
+	public void testValid() throws IOException {
 		var certName = "test.crt";
 		var certURL = getClass().getResource(certName);
-		var info = LicenseInfo.of(Objects.requireNonNull(certURL).openStream());
+		var info = CertificateInfo.of(Objects.requireNonNull(certURL).openStream());
 
 		assertFalse(info.isValid());
 	}

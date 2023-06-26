@@ -35,7 +35,7 @@ import java.security.cert.X509Certificate;
  *   create an instance of this class, one must provide a certificate authority
  *   certificate and key pair. To create a certificate, it is necessary to
  *   provide a newly generated key pair and certificate information under a
- *   <code>LicenseInfo</code> object.
+ *   {@link CertificateInfo} object.
  * </p>
  * <p></p>
  * <p>
@@ -80,7 +80,7 @@ public class CertificateGenerator {
 	 * the license information and the public key provided. The CSR is then signed
 	 * by the certificate authority.
 	 */
-	public X509Certificate createCertificate(LicenseInfo info, KeyPair keyPair) {
+	public X509Certificate createCertificate(CertificateInfo info, KeyPair keyPair) {
 		try {
 			var csr = createCSR(info, keyPair.getPublic());
 			var certBuilder = getCertBuilder(info, csr);
@@ -160,7 +160,7 @@ public class CertificateGenerator {
 		return csrContentSigner;
 	}
 
-	private X509v3CertificateBuilder getCertBuilder(LicenseInfo info,
+	private X509v3CertificateBuilder getCertBuilder(CertificateInfo info,
 			PKCS10CertificationRequest csr) {
 		var randomLong = new SecureRandom().nextLong();
 		var issuedCertSerialNum = new BigInteger(Long.toString(randomLong));
@@ -173,7 +173,7 @@ public class CertificateGenerator {
 				info.notAfter(), csr.getSubject(), csr.getSubjectPublicKeyInfo());
 	}
 
-	private PKCS10CertificationRequest createCSR(LicenseInfo info, PublicKey
+	private PKCS10CertificationRequest createCSR(CertificateInfo info, PublicKey
 			publicKey) {
 		var subject = info.subject().asX500Name();
 		if (subject.getRDNs().length == 0) {

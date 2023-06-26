@@ -9,8 +9,8 @@ import java.security.cert.X509Certificate;
 import java.util.Date;
 
 /**
- * The LicenseInfo records data necessary to the creation or reading of a
- * certificate.
+ * The {@link CertificateInfo} records data necessary to the creation or reading
+ * of a certificate.
  * @param notBefore Date before which the certificate is not valid (to the
  *                 second).
  * @param notAfter Date after which the certificate is not valid (to the
@@ -18,24 +18,25 @@ import java.util.Date;
  * @param subject Owner of the certificate.
  * @param issuer Authority that is signing the CSR to create the certificate.
  */
-public record LicenseInfo(Date notBefore, Date notAfter, Person subject,
-													Person issuer) {
+public record CertificateInfo(Date notBefore, Date notAfter, Person subject,
+															Person issuer) {
 
-	public static LicenseInfo of(InputStream inputStream) {
+	public static CertificateInfo of(InputStream inputStream) {
 		try {
 			var cf = CertificateFactory.getInstance("X.509");
 
 			var cert = (X509Certificate) cf.generateCertificate(inputStream);
 			var holder = new JcaX509CertificateHolder(cert);
 
-			return new LicenseInfo(
+			return new CertificateInfo(
 					holder.getNotBefore(),
 					holder.getNotAfter(),
 					Person.of(holder.getSubject()),
 					Person.of(holder.getIssuer())
 			);
 		} catch (CertificateException e) {
-			throw new RuntimeException(e);
+			throw new RuntimeException("Error while parsing the X.509 certificate "
+					+ "into a " + CertificateInfo.class + "object.", e);
 		}
 	}
 
@@ -48,7 +49,7 @@ public record LicenseInfo(Date notBefore, Date notAfter, Person subject,
 	public boolean equals(Object o) {
 		if (o == this)
 			return true;
-		if (!(o instanceof LicenseInfo other))
+		if (!(o instanceof CertificateInfo other))
 			return false;
 		var notBeforeEqual = areDateEqual(other.notBefore(), notBefore);
 		var notAfterEqual = areDateEqual(other.notAfter(), notAfter);

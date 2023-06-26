@@ -10,9 +10,10 @@ import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 import org.bouncycastle.util.encoders.Base64;
 import org.openlca.license.certificate.CertificateGenerator;
-import org.openlca.license.certificate.LicenseInfo;
+import org.openlca.license.certificate.CertificateInfo;
 import org.openlca.license.signature.Signer;
 
+import javax.crypto.BadPaddingException;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -59,8 +60,7 @@ public class Licensor {
 	private static final String BC = "BC";
 	private static final String KEY_ALGORITHM = "RSA";
 	public static final String JSON = "license.json";
-	public static List<String> INDICES = List.of("index_A.bin", "index_B.bin",
-			"index_C.bin");
+	public static List<String> INDICES = List.of("index_A", "index_B", "index_C");
 	public static final int BUFFER_SIZE = 8192;
 
 
@@ -132,8 +132,8 @@ public class Licensor {
 	 *             indices,
 	 * @param info the information necessary to the creation of the certificate.
 	 */
-	public void license(ZipInputStream input, ZipOutputStream output, String pass,
-			LicenseInfo info) throws IOException {
+	public void license(ZipInputStream input, ZipOutputStream output, char[] pass,
+			CertificateInfo info) throws IOException {
 		keyPair = generateKeyPair();
 
 		var certificate = createCertificate(info);
@@ -160,15 +160,20 @@ public class Licensor {
 	 * designated ZIP entry.
 	 */
 	private void processEntry(ZipInputStream input, ZipOutputStream output,
-			ZipEntry entry, String pass) throws IOException {
+			ZipEntry entry, char[] pass) throws IOException {
 		var name = entry.getName();
-		if (INDICES.contains(name)) {
+		var baseName = name.substring(0, name.length() - ".bin".length());
+		if (INDICES.contains(baseName)) {
 			// encrypting the index file
 			var bos = new ByteArrayOutputStream();
-			Crypto.encrypt(pass, keyPair.getPublic().getEncoded(), input, bos);
+			try {
+				Crypto.encrypt(pass, keyPair.getPublic().getEncoded(), input, bos);
+			} catch (BadPaddingException e) {
+				throw new RuntimeException("Error while encrypting the following file: "
+						+ name, e);
+			}
 
 			// signing the encrypted index with a new ZipEntry
-			var baseName = name.substring(0, name.length() - ".bin".length());
 			var indexEntry = new ZipEntry(baseName + ".enc");
 			output.putNextEntry(indexEntry);
 			var bytes = bos.toByteArray();
@@ -217,7 +222,7 @@ public class Licensor {
 	 * Creates a new certificate by calling the {@link CertificateGenerator}
 	 * instantiated with the certificate authority.
 	 */
-	public String createCertificate(LicenseInfo info) {
+	public String createCertificate(CertificateInfo info) {
 		var keyPairCA = new KeyPair(publicKeyCA, privateKeyCA);
 		var generator = new CertificateGenerator(certAuthority, keyPairCA);
 		var x509certificate = generator.createCertificate(info, keyPair);
