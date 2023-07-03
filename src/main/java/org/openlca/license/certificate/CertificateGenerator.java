@@ -31,11 +31,11 @@ import java.security.cert.X509Certificate;
 
 /**
  * <p>
- *   The CertificateGenerator class is used to generate X.509 certificates. To
- *   create an instance of this class, one must provide a certificate authority
- *   certificate and key pair. To create a certificate, it is necessary to
- *   provide a newly generated key pair and certificate information under a
- *   {@link CertificateInfo} object.
+ *   The {@link CertificateGenerator} class is used to generate X.509
+ *   certificates. To create an instance of this class, one must provide a
+ *   certificate authority certificate and key pair. To create a certificate, it
+ *   is necessary to provide a newly generated key pair and certificate
+ *   information under a {@link CertificateInfo} object.
  * </p>
  * <p></p>
  * <p>

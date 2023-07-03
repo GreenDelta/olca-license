@@ -20,7 +20,9 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
@@ -60,8 +62,9 @@ public class Licensor {
 	private static final String BC = "BC";
 	private static final String KEY_ALGORITHM = "RSA";
 	public static final String JSON = "license.json";
+	private static final long SIZE_LIMIT = 1_000_000;
 	public static List<String> INDICES = List.of("index_A", "index_B", "index_C");
-	public static final int BUFFER_SIZE = 8192;
+	public static final int BUFFER_SIZE = 8_192;
 
 
 	static {
@@ -84,19 +87,19 @@ public class Licensor {
 
 	/**
 	 * <p>
-	 *   Construct a new instance of {@link Licensor} with a certificate authority
-	 *   as an input.
+	 * Construct a new instance of {@link Licensor} with a certificate authority
+	 * as an input.
 	 * </p>
 	 * <p>
-	 *   The industrial standard for a CA file structure is as follow:
+	 * The industrial standard for a CA file structure is as follow:
 	 *   <ul>
 	 *     <li>
 	 *       private
 	 *       <ul>
-	 *         <li>[folder name].key</li>
+	 *         <li>[folder libName].key</li>
 	 *       </ul>
 	 *     </li>
-	 *     <li>[folder name].crt</li>
+	 *     <li>[folder libName].crt</li>
 	 *   </ul>
 	 * </p>
 	 */
@@ -118,19 +121,19 @@ public class Licensor {
 
 	/**
 	 * <p>
-	 *   Creates a license framework (certificate, signatures and encryption) from
-	 *   a data library.
+	 * Creates a license framework (certificate, signatures and encryption) from
+	 * a data library.
 	 * </p>
 	 * <p>
-	 *   The ZIP streams should be created with a 'try'-with-resources statement.
+	 * The ZIP streams should be created with a 'try'-with-resources statement.
 	 * </p>
 	 *
-	 * @param input the data library as a ZipIntutStream,
+	 * @param input  the data library as a ZipIntutStream,
 	 * @param output the ZipOutputSteam on which the licensed data library is
 	 *               written,
-	 * @param pass the user password that is used to encrypt the data library
-	 *             indices,
-	 * @param info the information necessary to the creation of the certificate.
+	 * @param pass   the user password that is used to encrypt the data library
+	 *               indices,
+	 * @param info   the information necessary to the creation of the certificate.
 	 */
 	public void license(ZipInputStream input, ZipOutputStream output, char[] pass,
 			CertificateInfo info) throws IOException {
@@ -197,10 +200,19 @@ public class Licensor {
 
 		var licenseEntry = new ZipEntry(JSON);
 		output.putNextEntry(licenseEntry);
+		write(jsonInput, licenseEntry.getName(), output);
+	}
+
+	private void write(InputStream input, String name, OutputStream output) {
 		var buffer = new byte[BUFFER_SIZE];
 		int length;
-		while((length = jsonInput.read(buffer)) >= 0) {
-			output.write(buffer, 0, length);
+		try {
+			while ((length = input.read(buffer)) >= 0) {
+				output.write(buffer, 0, length);
+			}
+		} catch (IOException e) {
+			throw new RuntimeException("Error while writing the following file: "
+					+ name, e);
 		}
 	}
 
@@ -250,15 +262,15 @@ public class Licensor {
 	 * structured in respect with the industry standard:
 	 * </p>
 	 * <p>
-	 *   The industrial standard for a CA file structure is as follow:
+	 * The industrial standard for a CA file structure is as follow:
 	 *   <ul>
 	 *     <li>
 	 *       private
 	 *       <ul>
-	 *         <li>[folder name].key</li>
+	 *         <li>[folder libName].key</li>
 	 *       </ul>
 	 *     </li>
-	 *     <li>[folder name].crt</li>
+	 *     <li>[folder libName].crt</li>
 	 *   </ul>
 	 * </p>
 	 */
@@ -271,7 +283,7 @@ public class Licensor {
 		var converter = new JcaPEMKeyConverter();
 		if (parser.readObject() instanceof PrivateKeyInfo keyInfo)
 			return converter.getPrivateKey(keyInfo);
-		else return  null;
+		else return null;
 	}
 
 	public static PEMParser getPEMParser(File file) throws FileNotFoundException {

@@ -3,7 +3,6 @@ package org.openlca.license;
 import org.openlca.license.certificate.CertificateInfo;
 import org.openlca.license.certificate.Person;
 
-import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -25,7 +24,7 @@ import java.util.zip.ZipOutputStream;
 
 public class TestUtils {
 
-	public static final int BUFFER_SIZE = 8192;
+	public static final int BUFFER_SIZE = 8_192;
 
 	public static CertificateInfo getExpiredCertificateInfo() {
 		var calendar = Calendar.getInstance();
@@ -57,16 +56,14 @@ public class TestUtils {
 		return new CertificateInfo(startDate, endDate, getSubject(), getIssuer());
 	}
 
-	private static Person getSubject() {
+	static Person getSubject() {
 		return new Person("John Doe", "US", "john@green-company.com",
 				"Green Company");
 	}
 
-	private static Person getIssuer() {
+	static Person getIssuer() {
 		return new Person("Nexus CA", "DE", "", "Green Delta");
 	}
-
-
 
 	public static ZipInputStream createTestLibrary(File file) throws IOException,
 			URISyntaxException {
@@ -84,7 +81,7 @@ public class TestUtils {
 			ZipOutputStream zipOut) throws IOException {
 		var json = new File("library.json");
 		var writer = new BufferedWriter(new FileWriter(json));
-		writer.write("{\"name\":\"new_database\",\"version\":\"1.0\"}");
+		writer.write("{\"libName\":\"new_database\",\"version\":\"1.0\"}");
 		writer.close();
 
 		addToZipOut(zipOut, json, json.getName());
@@ -154,23 +151,6 @@ public class TestUtils {
 					return FileVisitResult.CONTINUE;
 				}
 			});
-		}
-	}
-
-	public static void extractFile(File zip, String fileName,
-			FileOutputStream out) throws IOException {
-		try (var bis = new BufferedInputStream(new FileInputStream(zip))) {
-			var zin = new ZipInputStream(bis);
-			ZipEntry ze;
-			while ((ze = zin.getNextEntry()) != null) {
-				if (ze.getName().equals(fileName)) {
-					var buffer = new byte[BUFFER_SIZE];
-					int len;
-					while ((len = zin.read(buffer)) != -1) {
-						out.write(buffer, 0, len);
-					}
-				}
-			}
 		}
 	}
 

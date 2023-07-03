@@ -28,7 +28,7 @@ public class TestSignature {
 	private KeyPair keyPair;
 	private File file1;
 	private File zip;
-	private Verifier verifier;
+	private SignatureVerifier verifier;
 
 	static {
 		Security.addProvider(new BouncyCastleProvider());
@@ -54,7 +54,7 @@ public class TestSignature {
 		TestUtils.zip(folder, zip);
 
 		keyPair = Licensor.generateKeyPair();
-		verifier = new Verifier(keyPair.getPublic(), signFolder());
+		verifier = new SignatureVerifier(keyPair.getPublic(), signFolder());
 	}
 
 	@Test

@@ -4,13 +4,17 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.openlca.license.access.Credentials;
+import org.openlca.license.access.LicenseStatus;
 import org.openlca.license.certificate.CertificateInfo;
 
+import javax.crypto.BadPaddingException;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.nio.file.Files;
 import java.util.Date;
 import java.util.Objects;
 import java.util.zip.ZipInputStream;
@@ -69,10 +73,24 @@ public class TestLicensor {
 	public void testCertificateInfo() throws IOException, URISyntaxException {
 		var info = getValidCertificateInfo();
 		var libraryFolder = initLibrary(info);
-		var license = License.of(libraryFolder);
+		var license = License.of(libraryFolder).orElse(null);
 
+		assertNotNull(license);
 		var certificateInfo = license.getInfo();
 		assertEquals(info, certificateInfo);
+	}
+
+	@Test
+	public void testValidStatus() throws IOException, URISyntaxException {
+		var info = getValidCertificateInfo();
+		var libraryFolder = initLibrary(info);
+		var license = License.of(libraryFolder).orElse(null);
+		assertNotNull(license);
+
+		var email = info.subject().email();
+		var credentials = new Credentials(email, PASSWORD_LIB);
+		var status = license.status(libraryFolder, credentials);
+		assertEquals(LicenseStatus.VALID, status);
 	}
 
 	@Test
@@ -84,9 +102,12 @@ public class TestLicensor {
 		var file = new File(libraryFolder, "file");
 		file.createNewFile();
 
-		var license = License.of(libraryFolder);
+		var license = License.of(libraryFolder).orElse(null);
+		assertNotNull(license);
+
 		var email = info.subject().email();
-		var status = license.status(libraryFolder, email, PASSWORD_LIB);
+		var credentials = new Credentials(email, PASSWORD_LIB);
+		var status = license.status(libraryFolder, credentials);
 		assertEquals(LicenseStatus.CORRUPTED, status);
 	}
 
@@ -94,10 +115,12 @@ public class TestLicensor {
 	public void testExpiredStatus() throws IOException, URISyntaxException {
 		var info = getExpiredCertificateInfo();
 		var libraryFolder = initLibrary(info);
-		var license = License.of(libraryFolder);
+		var license = License.of(libraryFolder).orElse(null);
+		assertNotNull(license);
 
 		var email = info.subject().email();
-		var status = license.status(libraryFolder, email, PASSWORD_LIB);
+		var credentials = new Credentials(email, PASSWORD_LIB);
+		var status = license.status(libraryFolder, credentials);
 		assertEquals(LicenseStatus.EXPIRED, status);
 	}
 
@@ -105,10 +128,12 @@ public class TestLicensor {
 	public void testStatusNotYetValid() throws IOException, URISyntaxException {
 		var info = getNotYetValidCertificateInfo();
 		var libraryFolder = initLibrary(info);
-		var license = License.of(libraryFolder);
+		var license = License.of(libraryFolder).orElse(null);
+		assertNotNull(license);
 
 		var email = info.subject().email();
-		var status = license.status(libraryFolder, email, PASSWORD_LIB);
+		var credentials = new Credentials(email, PASSWORD_LIB);
+		var status = license.status(libraryFolder, credentials);
 		assertEquals(LicenseStatus.NOT_YET_VALID, status);
 	}
 
@@ -116,10 +141,12 @@ public class TestLicensor {
 	public void testStatusWrongEmail() throws IOException, URISyntaxException {
 		var info = getValidCertificateInfo();
 		var libraryFolder = initLibrary(info);
-		var license = License.of(libraryFolder);
+		var license = License.of(libraryFolder).orElse(null);
+		assertNotNull(license);
 
 		var email = "wrong email";
-		var status = license.status(libraryFolder, email, PASSWORD_LIB);
+		var credentials = new Credentials(email, PASSWORD_LIB);
+		var status = license.status(libraryFolder, credentials);
 		assertEquals(LicenseStatus.WRONG_USER, status);
 	}
 
@@ -127,22 +154,82 @@ public class TestLicensor {
 	public void testStatusWrongPassword() throws IOException, URISyntaxException {
 		var info = getValidCertificateInfo();
 		var libraryFolder = initLibrary(info);
-		var license = License.of(libraryFolder);
+		var license = License.of(libraryFolder).orElse(null);
+		assertNotNull(license);
 
 		var email = info.subject().email();
 		var password = "wrongpassword".toCharArray();
-		var status = license.status(libraryFolder, email, password);
+		var credentials = new Credentials(email, password);
+		var status = license.status(libraryFolder, credentials);
 		assertEquals(LicenseStatus.WRONG_PASSWORD, status);
 	}
 
-	public void testLicenseLibrary() throws IOException {
-		var licensor = Licensor.getInstance(ca);
-		var info = getExpiredCertificateInfo();
+	@Test
+	public void testGetCipherFromCredentials() throws IOException,
+			URISyntaxException, BadPaddingException {
+		var info = getValidCertificateInfo();
+		var libraryFolder = initLibrary(info);
+		var license = License.of(libraryFolder).orElse(null);
+		assertNotNull(license);
 
-		try (var input = new ZipInputStream(new FileInputStream("agribalib.zip"));
-				 var output = new ZipOutputStream(new FileOutputStream("agribalib.zlib"))) {
-			licensor.license(input, output, PASSWORD_LIB, info);
+		var email = info.subject().email();
+		var credentials = new Credentials(email, PASSWORD_LIB);
+		var cipher = license.getDecryptCipher(credentials);
+		var encryptedFile = new File(libraryFolder, "index_A.enc");
+		var decryptedFile = new File(libraryFolder, "index_A.bin");
+
+		try (var in = new FileInputStream(encryptedFile);
+				 var out = new FileOutputStream(decryptedFile)) {
+			Crypto.doCrypto(cipher, in, out);
 		}
+		var indexURL = TestUtils.class.getResource("index.bin");
+		var index = new File(Objects.requireNonNull(indexURL).toURI());
+
+		assertArrayEquals(Files.readAllBytes(index.toPath()),
+				Files.readAllBytes(decryptedFile.toPath()));
+	}
+
+	@Test
+	public void testGetCipherFromSecret() throws IOException,
+			URISyntaxException, BadPaddingException {
+		var info = getValidCertificateInfo();
+		var libraryFolder = initLibrary(info);
+		var license = License.of(libraryFolder).orElse(null);
+		assertNotNull(license);
+
+		var email = info.subject().email();
+		var credentials = new Credentials(email, PASSWORD_LIB);
+		var session = license.createSession(credentials);
+		assertNotNull(session);
+
+		var cipher = license.getDecryptCipher(session);
+		var encryptedFile = new File(libraryFolder, "index_A.enc");
+		var decryptedFile = new File(libraryFolder, "index_A.bin");
+
+		try (var in = new FileInputStream(encryptedFile);
+				 var out = new FileOutputStream(decryptedFile)) {
+			Crypto.doCrypto(cipher, in, out);
+		}
+		var indexURL = TestUtils.class.getResource("index.bin");
+		var index = new File(Objects.requireNonNull(indexURL).toURI());
+
+		assertArrayEquals(Files.readAllBytes(index.toPath()),
+				Files.readAllBytes(decryptedFile.toPath()));
+	}
+
+	@Test
+	public void testStatusFromSession() throws IOException, URISyntaxException {
+		var info = getValidCertificateInfo();
+		var libraryFolder = initLibrary(info);
+
+		var license = License.of(libraryFolder).orElse(null);
+		assertNotNull(license);
+
+		var email = info.subject().email();
+		var credentials = new Credentials(email, PASSWORD_LIB);
+		var session = license.createSession(credentials);
+		var status = license.status(libraryFolder, session);
+		assertEquals(LicenseStatus.VALID, status);
 	}
 
 }

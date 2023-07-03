@@ -15,8 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 
-import static org.openlca.license.signature.Signer.ALGORITHM;
-import static org.openlca.license.signature.Signer.BUFFER_SIZE;
+import static org.openlca.license.signature.Signer.*;
 
 
 /**
@@ -25,12 +24,12 @@ import static org.openlca.license.signature.Signer.BUFFER_SIZE;
  *   a {@link PublicKey}.
  * </p>
  */
-public class Verifier {
+public class SignatureVerifier {
 
 	private final Signature agent;
 	private final Map<String, byte[]> signatures;
 
-	public Verifier(PublicKey key, Map<String, byte[]> signatures) {
+	public SignatureVerifier(PublicKey key, Map<String, byte[]> signatures) {
 		this.signatures = signatures;
 		try {
 			agent = Signature.getInstance(ALGORITHM);
@@ -76,6 +75,7 @@ public class Verifier {
 		try (var walk = Files.walk(folder.toPath())) {
 			return walk
 					.filter(Files::isRegularFile)
+					.filter(path -> path.toFile().length() < SIZE_LIMIT)
 					.filter(Predicate.not(blacklist::contains))
 					.allMatch(this::verifyFile);
 		}
