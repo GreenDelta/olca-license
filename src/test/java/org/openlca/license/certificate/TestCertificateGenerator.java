@@ -1,19 +1,26 @@
 package org.openlca.license.certificate;
 
-import org.bouncycastle.cert.X509CertificateHolder;
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
-import org.junit.Test;
-import org.openlca.license.Licensor;
-import org.openlca.license.TestUtils;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.net.URL;
+import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.Security;
+import java.security.cert.X509Certificate;
 import java.util.Objects;
 
-import static org.junit.Assert.*;
+import org.bouncycastle.cert.X509CertificateHolder;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.openssl.PEMParser;
+import org.junit.Test;
+import org.openlca.license.Licensor;
+import org.openlca.license.TestUtils;
 
 public class TestCertificateGenerator {
 
@@ -24,40 +31,40 @@ public class TestCertificateGenerator {
 	@Test
 	public void testCreateLicenseCertificate()
 			throws Exception {
-		var keyPairGenerator = KeyPairGenerator.getInstance("RSA", "BC");
+		KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA", "BC");
 		keyPairGenerator.initialize(2048);
-		var keyPairCA = keyPairGenerator.generateKeyPair();
-		var certAuth = getTestCertAuth();
-		var generator = new CertificateGenerator(certAuth, keyPairCA);
-		var info = TestUtils.getExpiredCertificateInfo();
-		var keyPair = Licensor.generateKeyPair();
-		var certificate = generator.createCertificate(info, keyPair);
+		KeyPair keyPairCA = keyPairGenerator.generateKeyPair();
+		X509CertificateHolder certAuth = getTestCertAuth();
+		CertificateGenerator generator = new CertificateGenerator(certAuth, keyPairCA);
+		CertificateInfo info = TestUtils.getExpiredCertificateInfo();
+		KeyPair keyPair = Licensor.generateKeyPair();
+		X509Certificate certificate = generator.createCertificate(info, keyPair);
 
 		assertNotNull(certificate);
 
-		var expectedKeyUsage = new boolean[9];
+		boolean[] expectedKeyUsage = new boolean[9];
 		expectedKeyUsage[0] = true;
 		assertArrayEquals(expectedKeyUsage, certificate.getKeyUsage());
 
-		var beforeDiff = Math.abs(
+		long beforeDiff = Math.abs(
 				info.notBefore().getTime() - certificate.getNotBefore().getTime());
 		assertTrue(beforeDiff < 1000);
-		var afterDiff = Math.abs(
+		long afterDiff = Math.abs(
 				info.notAfter().getTime() - certificate.getNotAfter().getTime());
 		assertTrue(afterDiff < 1000);
 
-		var subjectName = certificate.getSubjectX500Principal().getName();
-		var subjectPerson = Person.of(subjectName);
+		String subjectName = certificate.getSubjectX500Principal().getName();
+		Person subjectPerson = Person.of(subjectName);
 		assertEquals(info.subject(), subjectPerson);
 	}
 
 	private X509CertificateHolder getTestCertAuth()
 			throws URISyntaxException, IOException {
-		var certName = "ca.crt";
-		var certURL = getClass().getResource(certName);
-		var certFile = new File(Objects.requireNonNull(certURL).toURI());
+		String certName = "ca.crt";
+		URL certURL = getClass().getResource(certName);
+		File certFile = new File(Objects.requireNonNull(certURL).toURI());
 
-		var parser = Licensor.getPEMParser(certFile);
+		PEMParser parser = Licensor.getPEMParser(certFile);
 		return  (X509CertificateHolder) parser.readObject();
 	}
 

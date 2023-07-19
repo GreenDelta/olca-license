@@ -53,9 +53,9 @@ public class Signer {
 	 */
 	public void sign(InputStream in, String name, OutputStream out) throws
 			IOException {
-		var buffer = new byte[BUFFER_SIZE];
+		byte[] buffer = new byte[BUFFER_SIZE];
 		int length;
-		var totalSize = 0;
+		int totalSize = 0;
 		while ((length = in.read(buffer)) >= 0) {
 			totalSize += length;
 			if (out != null) {
@@ -73,7 +73,7 @@ public class Signer {
 		}
 
 		try {
-			var signature = agent.sign();
+			byte[] signature = agent.sign();
 			if (totalSize < SIZE_LIMIT) {
 				signatures.put(name, signature);
 			}

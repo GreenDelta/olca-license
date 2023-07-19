@@ -1,12 +1,7 @@
 package org.openlca.license.signature;
 
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.openlca.license.Licensor;
-import org.openlca.license.TestUtils;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -16,11 +11,17 @@ import java.nio.file.Files;
 import java.security.KeyPair;
 import java.security.Security;
 import java.util.Map;
+import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+import org.openlca.license.Licensor;
+import org.openlca.license.TestUtils;
 
 public class TestSignature {
 
@@ -46,7 +47,7 @@ public class TestSignature {
 		folder.mkdir();*/
 		file1 = new File(folder, "file1");
 		Files.write(file1.toPath(), "one".getBytes());
-		var file2 = new File(folder, "file2");
+		File file2 = new File(folder, "file2");
 		Files.write(file2.toPath(), "two".getBytes());
 		zip = tempFolder.newFile("folder.zip");
 		/*zip = new File("folder.zip");
@@ -64,7 +65,7 @@ public class TestSignature {
 
 	@Test
 	public void testInvalidSignAddingFile() throws IOException {
-		var file3 = new File(folder, "file3");
+		File file3 = new File(folder, "file3");
 		Files.write(file3.toPath(), "three".getBytes());
 
 		assertFalse(verifier.verify(folder));
@@ -83,12 +84,12 @@ public class TestSignature {
 	}
 
 	private Map<String, byte[]> signFolder() throws IOException {
-		var signer = new Signer(keyPair.getPrivate());
+		Signer signer = new Signer(keyPair.getPrivate());
 
-		var signZip = tempFolder.newFile("sign.zip");
-		try (var input = new ZipInputStream(new FileInputStream(zip));
-				 var output = new ZipOutputStream(new FileOutputStream(signZip))) {
-			var zipEntry = input.getNextEntry();
+		File signZip = tempFolder.newFile("sign.zip");
+		try (ZipInputStream input = new ZipInputStream(new FileInputStream(zip));
+				 ZipOutputStream output = new ZipOutputStream(new FileOutputStream(signZip))) {
+			ZipEntry zipEntry = input.getNextEntry();
 			while (zipEntry != null) {
 				output.putNextEntry(zipEntry);
 				signer.sign(input, zipEntry.getName(), output);

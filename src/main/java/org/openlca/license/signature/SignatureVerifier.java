@@ -1,5 +1,9 @@
 package org.openlca.license.signature;
 
+import static org.openlca.license.signature.Signer.ALGORITHM;
+import static org.openlca.license.signature.Signer.BUFFER_SIZE;
+import static org.openlca.license.signature.Signer.SIZE_LIMIT;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -13,9 +17,8 @@ import java.security.SignatureException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Predicate;
-
-import static org.openlca.license.signature.Signer.*;
+import java.util.Set;
+import java.util.stream.Stream;
 
 
 /**
@@ -57,7 +60,7 @@ public class SignatureVerifier {
 	 */
 	public boolean verify(File folder, List<Path> blacklist) throws IOException {
 		// Check if none of the signed files is blacklisted
-		var fileNames = signatures.keySet();
+		Set<String> fileNames = signatures.keySet();
 		if (blacklist.stream()
 				.map(Path::getFileName)
 				.map(Path::toString)
@@ -68,15 +71,15 @@ public class SignatureVerifier {
 		// Check if all the signed files exist
 		if (signatures.keySet().stream()
 				.map(name -> new File(folder, name))
-				.anyMatch(Predicate.not(File::exists)))
+				.anyMatch(file -> !file.exists()))
 			return false;
 
 		// Verify all the signature
-		try (var walk = Files.walk(folder.toPath())) {
+		try (Stream<Path> walk = Files.walk(folder.toPath())) {
 			return walk
 					.filter(Files::isRegularFile)
 					.filter(path -> path.toFile().length() < SIZE_LIMIT)
-					.filter(Predicate.not(blacklist::contains))
+					.filter(path -> !blacklist.contains(path))
 					.allMatch(this::verifyFile);
 		}
 	}
@@ -90,15 +93,15 @@ public class SignatureVerifier {
 	}
 
 	private boolean verifyFile(Path path) {
-		var fileName = path.getFileName().toString();
-		var signature = signatures.get(fileName);
+		String fileName = path.getFileName().toString();
+		byte[] signature = signatures.get(fileName);
 
 		// The file might have been added after the signature
 		if (signature == null)
 			return false;
 
-		try (var fis = new FileInputStream(path.toFile())) {
-			var buffer = new byte[BUFFER_SIZE];
+		try (FileInputStream fis = new FileInputStream(path.toFile())) {
+			byte[] buffer = new byte[BUFFER_SIZE];
 			int lenght;
 			while ((lenght = fis.read(buffer)) >= 0) {
 				agent.update(buffer, 0, lenght);

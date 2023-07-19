@@ -31,7 +31,7 @@ public class TestCrypto {
 	public void setUp() {
 		try {
 			inputFile = folder.newFile("test.bin");
-			try (var outputStream = new FileOutputStream(inputFile)) {
+			try (FileOutputStream outputStream = new FileOutputStream(inputFile)) {
 				outputStream.write("test123".getBytes());
 			}
 		}
@@ -43,19 +43,19 @@ public class TestCrypto {
 
 	@Test
 	public void testTransitivity() throws IOException, BadPaddingException {
-		var password = "password123";
-		var salt = generateSalt();
+		String password = "password123";
+		byte[] salt = generateSalt();
 
-		var encryptedFile = folder.newFile("test.encrypted");
-		var decryptedFile = folder.newFile("test.decrypted");
+		File encryptedFile = folder.newFile("test.encrypted");
+		File decryptedFile = folder.newFile("test.decrypted");
 
-		try (var in = new FileInputStream(inputFile);
-				 var out = new FileOutputStream(encryptedFile)) {
+		try (FileInputStream in = new FileInputStream(inputFile);
+				 FileOutputStream out = new FileOutputStream(encryptedFile)) {
 			Crypto.encrypt(password.toCharArray(), salt, in, out);
 		}
 
-		try (var in = new FileInputStream(encryptedFile);
-				 var out = new FileOutputStream(decryptedFile)) {
+		try (FileInputStream in = new FileInputStream(encryptedFile);
+				 FileOutputStream out = new FileOutputStream(decryptedFile)) {
 			Crypto.decrypt(password.toCharArray(), salt, in, out);
 		}
 
@@ -64,8 +64,8 @@ public class TestCrypto {
 	}
 
 	public static byte[] generateSalt() {
-		var random = new SecureRandom();
-		var salt = new byte[16];
+		SecureRandom random = new SecureRandom();
+		byte[] salt = new byte[16];
 		random.nextBytes(salt);
 		return salt;
 	}

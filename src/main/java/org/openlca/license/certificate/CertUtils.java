@@ -18,9 +18,9 @@ public class CertUtils {
 	 */
 	public static PublicKey getPublicKey(InputStream inputStream) {
 		try {
-			var cert = getX509Certificate(inputStream);
-			var holder = new JcaX509CertificateHolder(cert);
-			var converter = new JcaPEMKeyConverter();
+			X509Certificate cert = getX509Certificate(inputStream);
+			JcaX509CertificateHolder holder = new JcaX509CertificateHolder(cert);
+			JcaPEMKeyConverter converter = new JcaPEMKeyConverter();
 			return converter.getPublicKey(holder.getSubjectPublicKeyInfo());
 		} catch (CertificateException | PEMException e) {
 			throw new RuntimeException("Error while getting the public key.", e);
@@ -29,7 +29,7 @@ public class CertUtils {
 
 	public static X509Certificate getX509Certificate(InputStream inputStream) {
 		try {
-			var cf = CertificateFactory.getInstance("X.509");
+			CertificateFactory cf = CertificateFactory.getInstance("X.509");
 			return (X509Certificate) cf.generateCertificate(inputStream);
 		} catch (CertificateException e) {
 			throw new RuntimeException("Error while generating an X509 certificate "

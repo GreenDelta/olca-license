@@ -38,25 +38,25 @@ public class Crypto {
 
 	public static void encrypt(char[] password, byte[] salt, InputStream in,
 			OutputStream out) throws IOException, BadPaddingException {
-		var cipher = getCipher(Cipher.ENCRYPT_MODE, password, salt);
+		Cipher cipher = getCipher(Cipher.ENCRYPT_MODE, password, salt);
 		doCrypto(cipher, in, out);
 	}
 
 	public static void decrypt(char[] password, byte[] salt, InputStream in,
 			OutputStream out) throws IOException, BadPaddingException {
-		var cipher = getCipher(Cipher.DECRYPT_MODE, password, salt);
+		Cipher cipher = getCipher(Cipher.DECRYPT_MODE, password, salt);
 		doCrypto(cipher, in, out);
 	}
 
 	public static SecretKeySpec getKeyFromPassword(char[] pass, byte[] salt) {
-		var secret = getSecret(pass, salt);
+		byte[] secret = getSecret(pass, salt);
 		return getKeyFromSecret(secret);
 	}
 
 	public static byte[] getSecret(char[] pass, byte[] salt) {
-		var spec = new PBEKeySpec(pass, salt, ITERATION, KEY_LENGTH);
+		PBEKeySpec spec = new PBEKeySpec(pass, salt, ITERATION, KEY_LENGTH);
 		try {
-			var factory = SecretKeyFactory.getInstance(HASH);
+			SecretKeyFactory factory = SecretKeyFactory.getInstance(HASH);
 			return factory.generateSecret(spec).getEncoded();
 		} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
 			throw new RuntimeException("Error while getting the secret key from the "
@@ -77,17 +77,17 @@ public class Crypto {
 	 */
 	static void doCrypto(Cipher cipher, InputStream in, OutputStream out)
 			throws IOException, BadPaddingException {
-		var buffer = new byte[BUFFER_SIZE];
+		byte[] buffer = new byte[BUFFER_SIZE];
 		int len;
 		while ((len = in.read(buffer)) != -1) {
-			var result = cipher.update(buffer, 0, len);
+			byte[] result = cipher.update(buffer, 0, len);
 			if (result != null) {
 				out.write(result);
 			}
 		}
 
 		try {
-			var result = cipher.doFinal();
+			byte[] result = cipher.doFinal();
 			if (result != null) {
 				out.write(result);
 			}
@@ -98,24 +98,24 @@ public class Crypto {
 
 	private static Cipher getCipher(int mode, SecretKeySpec key) {
 		try {
-			var cipher = Cipher.getInstance(TRANSFORMATION);
+			Cipher cipher = Cipher.getInstance(TRANSFORMATION);
 			cipher.init(mode, key);
 			return cipher;
 		} catch (NoSuchAlgorithmException | NoSuchPaddingException |
 						 InvalidKeyException e) {
-			var verbose = mode == Cipher.DECRYPT_MODE ? "decrypting" : "encrypting";
+			String verbose = mode == Cipher.DECRYPT_MODE ? "decrypting" : "encrypting";
 			throw new RuntimeException("Error while creating the " + verbose
 					+ " cipher.", e);
 		}
 	}
 
 	public static Cipher getCipher(int mode, char[] password, byte[] salt) {
-		var key = getKeyFromPassword(password, salt);
+		SecretKeySpec key = getKeyFromPassword(password, salt);
 		return getCipher(mode, key);
 	}
 
 	public static Cipher getCipher(int mode, byte[] secret) {
-		var key = getKeyFromSecret(secret);
+		SecretKeySpec key = getKeyFromSecret(secret);
 		return getCipher(mode, key);
 	}
 

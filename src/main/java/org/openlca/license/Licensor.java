@@ -1,19 +1,5 @@
 package org.openlca.license;
 
-import com.google.gson.GsonBuilder;
-import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
-import org.bouncycastle.cert.X509CertificateHolder;
-import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
-import org.bouncycastle.openssl.PEMException;
-import org.bouncycastle.openssl.PEMParser;
-import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
-import org.bouncycastle.util.encoders.Base64;
-import org.openlca.license.certificate.CertificateGenerator;
-import org.openlca.license.certificate.CertificateInfo;
-import org.openlca.license.signature.Signer;
-
-import javax.crypto.BadPaddingException;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -32,11 +18,32 @@ import java.security.PublicKey;
 import java.security.Security;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
+
+import javax.crypto.BadPaddingException;
+
+import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
+import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
+import org.bouncycastle.cert.X509CertificateHolder;
+import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.openssl.PEMException;
+import org.bouncycastle.openssl.PEMParser;
+import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
+import org.bouncycastle.util.encoders.Base64;
+import org.openlca.license.certificate.CertificateGenerator;
+import org.openlca.license.certificate.CertificateInfo;
+import org.openlca.license.signature.Signer;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 
 /**
@@ -62,8 +69,7 @@ public class Licensor {
 	private static final String BC = "BC";
 	private static final String KEY_ALGORITHM = "RSA";
 	public static final String JSON = "license.json";
-	private static final long SIZE_LIMIT = 1_000_000;
-	public static List<String> INDICES = List.of("index_A", "index_B", "index_C");
+	public static List<String> INDICES = Arrays.asList("index_A", "index_B", "index_C");
 	public static final int BUFFER_SIZE = 8_192;
 
 
@@ -105,12 +111,12 @@ public class Licensor {
 	 */
 	public static Licensor getInstance(File ca) throws
 			IOException {
-		var certificateName = ca.getName() + ".crt";
-		var parser = getPEMParser(new File(ca, certificateName));
-		var certificate = (X509CertificateHolder) parser.readObject();
+		String certificateName = ca.getName() + ".crt";
+		PEMParser parser = getPEMParser(new File(ca, certificateName));
+		X509CertificateHolder certificate = (X509CertificateHolder) parser.readObject();
 
-		var publicKey = getPublicKeyCA(certificate);
-		var privateKey = getPrivateKeyCA(ca);
+		PublicKey publicKey = getPublicKeyCA(certificate);
+		PrivateKey privateKey = getPrivateKeyCA(ca);
 
 		if (privateKey == null) {
 			throw new IOException("Error while getting the private key from the "
@@ -139,22 +145,22 @@ public class Licensor {
 			CertificateInfo info) throws IOException {
 		keyPair = generateKeyPair();
 
-		var certificate = createCertificate(info);
-		var authority = getAuthority();
+		String certificate = createCertificate(info);
+		String authority = getAuthority();
 		signer = new Signer(keyPair.getPrivate());
 
-		var zipEntry = input.getNextEntry();
+		ZipEntry zipEntry = input.getNextEntry();
 		while (zipEntry != null) {
 			processEntry(input, output, zipEntry, pass);
 			zipEntry = input.getNextEntry();
 		}
 
-		var signaturesAsBytes = signer.getSignatures();
-		var signatures = new HashMap<String, String>();
+		Map<String, byte[]> signaturesAsBytes = signer.getSignatures();
+		HashMap<String, String> signatures = new HashMap<String, String>();
 		signaturesAsBytes.forEach(
 				(key, value) -> signatures.put(key, new String(Base64.encode(value))));
 
-		var license = new License(certificate, signatures, authority);
+		License license = new License(certificate, signatures, authority);
 		writeLicenseToJson(license, output);
 	}
 
@@ -164,11 +170,11 @@ public class Licensor {
 	 */
 	private void processEntry(ZipInputStream input, ZipOutputStream output,
 			ZipEntry entry, char[] pass) throws IOException {
-		var name = entry.getName();
-		var baseName = name.substring(0, name.length() - ".bin".length());
+		String name = entry.getName();
+		String baseName = name.substring(0, name.length() - ".bin".length());
 		if (INDICES.contains(baseName)) {
 			// encrypting the index file
-			var bos = new ByteArrayOutputStream();
+			ByteArrayOutputStream bos = new ByteArrayOutputStream();
 			try {
 				Crypto.encrypt(pass, keyPair.getPublic().getEncoded(), input, bos);
 			} catch (BadPaddingException e) {
@@ -177,10 +183,10 @@ public class Licensor {
 			}
 
 			// signing the encrypted index with a new ZipEntry
-			var indexEntry = new ZipEntry(baseName + ".enc");
+			ZipEntry indexEntry = new ZipEntry(baseName + ".enc");
 			output.putNextEntry(indexEntry);
-			var bytes = bos.toByteArray();
-			var bis = new ByteArrayInputStream(bytes);
+			byte[] bytes = bos.toByteArray();
+			ByteArrayInputStream bis = new ByteArrayInputStream(bytes);
 			signer.sign(bis, indexEntry.getName(), output);
 		} else {
 			output.putNextEntry(entry);
@@ -194,17 +200,17 @@ public class Licensor {
 	 */
 	private void writeLicenseToJson(License license, ZipOutputStream output)
 			throws IOException {
-		var gson = new GsonBuilder().setPrettyPrinting().create();
-		var json = gson.toJson(license);
-		var jsonInput = new ByteArrayInputStream(json.getBytes());
+		Gson gson = new GsonBuilder().setPrettyPrinting().create();
+		String json = gson.toJson(license);
+		ByteArrayInputStream jsonInput = new ByteArrayInputStream(json.getBytes());
 
-		var licenseEntry = new ZipEntry(JSON);
+		ZipEntry licenseEntry = new ZipEntry(JSON);
 		output.putNextEntry(licenseEntry);
 		write(jsonInput, licenseEntry.getName(), output);
 	}
 
 	private void write(InputStream input, String name, OutputStream output) {
-		var buffer = new byte[BUFFER_SIZE];
+		byte[] buffer = new byte[BUFFER_SIZE];
 		int length;
 		try {
 			while ((length = input.read(buffer)) >= 0) {
@@ -221,7 +227,7 @@ public class Licensor {
 	 */
 	private String getAuthority() {
 		try {
-			var authority = new JcaX509CertificateConverter()
+			X509Certificate authority = new JcaX509CertificateConverter()
 					.setProvider(BC)
 					.getCertificate(certAuthority);
 			return CertificateGenerator.toBase64(authority);
@@ -235,9 +241,9 @@ public class Licensor {
 	 * instantiated with the certificate authority.
 	 */
 	public String createCertificate(CertificateInfo info) {
-		var keyPairCA = new KeyPair(publicKeyCA, privateKeyCA);
-		var generator = new CertificateGenerator(certAuthority, keyPairCA);
-		var x509certificate = generator.createCertificate(info, keyPair);
+		KeyPair keyPairCA = new KeyPair(publicKeyCA, privateKeyCA);
+		CertificateGenerator generator = new CertificateGenerator(certAuthority, keyPairCA);
+		X509Certificate x509certificate = generator.createCertificate(info, keyPair);
 
 		try {
 			return CertificateGenerator.toBase64(x509certificate);
@@ -252,8 +258,8 @@ public class Licensor {
 	 */
 	private static PublicKey getPublicKeyCA(X509CertificateHolder cert)
 			throws PEMException {
-		var publicKeyInfo = cert.getSubjectPublicKeyInfo();
-		var converter = new JcaPEMKeyConverter();
+		SubjectPublicKeyInfo publicKeyInfo = cert.getSubjectPublicKeyInfo();
+		JcaPEMKeyConverter converter = new JcaPEMKeyConverter();
 		return converter.getPublicKey(publicKeyInfo);
 	}
 
@@ -276,25 +282,26 @@ public class Licensor {
 	 */
 	private static PrivateKey getPrivateKeyCA(File ca)
 			throws IOException {
-		var privateDir = new File(ca, "private");
-		var keyName = ca.getName() + ".key";
-		var parser = getPEMParser(new File(privateDir, keyName));
+		File privateDir = new File(ca, "private");
+		String keyName = ca.getName() + ".key";
+		PEMParser parser = getPEMParser(new File(privateDir, keyName));
 
-		var converter = new JcaPEMKeyConverter();
-		if (parser.readObject() instanceof PrivateKeyInfo keyInfo)
-			return converter.getPrivateKey(keyInfo);
+		JcaPEMKeyConverter converter = new JcaPEMKeyConverter();
+		Object keyInfo = parser.readObject();
+		if (keyInfo instanceof PrivateKeyInfo)
+			return converter.getPrivateKey((PrivateKeyInfo) keyInfo);
 		else return null;
 	}
 
 	public static PEMParser getPEMParser(File file) throws FileNotFoundException {
-		var stream = new FileInputStream(file);
-		var reader = new InputStreamReader(stream);
+		FileInputStream stream = new FileInputStream(file);
+		InputStreamReader reader = new InputStreamReader(stream);
 		return new PEMParser(reader);
 	}
 
 	public static KeyPair generateKeyPair() {
 		try {
-			var keyPairGenerator = KeyPairGenerator.getInstance(KEY_ALGORITHM, BC);
+			KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance(KEY_ALGORITHM, BC);
 			keyPairGenerator.initialize(2048);
 			return keyPairGenerator.generateKeyPair();
 		} catch (NoSuchAlgorithmException | NoSuchProviderException e) {

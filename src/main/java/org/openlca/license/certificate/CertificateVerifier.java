@@ -27,14 +27,14 @@ public class CertificateVerifier {
 	 * @param auth the certificate authority.
 	 */
 	public static boolean verify(X509Certificate cert, X509Certificate auth) {
-		var certPath = getCertPath(cert);
-		var trustAnchors = getTrustAnchors(auth);
+		CertPath certPath = getCertPath(cert);
+		Set<TrustAnchor> trustAnchors = getTrustAnchors(auth);
 
 		try {
-			var parameters = new PKIXParameters(trustAnchors);
+			PKIXParameters parameters = new PKIXParameters(trustAnchors);
 			parameters.setRevocationEnabled(false);
 
-			var validator = CertPathValidator.getInstance("PKIX");
+			CertPathValidator validator = CertPathValidator.getInstance("PKIX");
 			validator.validate(certPath, parameters);
 			return true;
 		} catch (InvalidAlgorithmParameterException | NoSuchAlgorithmException e) {
@@ -46,14 +46,14 @@ public class CertificateVerifier {
 	}
 
 	private static Set<TrustAnchor> getTrustAnchors(X509Certificate authority) {
-		var anchor = new TrustAnchor(authority, null);
+		TrustAnchor anchor = new TrustAnchor(authority, null);
 		return Collections.singleton(anchor);
 	}
 
 	private static CertPath getCertPath(X509Certificate cert) {
 		try {
-			var cf = CertificateFactory.getInstance("X.509");
-			var certificates = new ArrayList<X509Certificate>();
+			CertificateFactory cf = CertificateFactory.getInstance("X.509");
+			ArrayList<X509Certificate> certificates = new ArrayList<X509Certificate>();
 			certificates.add(cert);
 			return cf.generateCertPath(certificates);
 		} catch (CertificateException e) {

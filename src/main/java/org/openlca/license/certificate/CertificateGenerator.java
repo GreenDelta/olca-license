@@ -1,21 +1,5 @@
 package org.openlca.license.certificate;
 
-import org.bouncycastle.asn1.x509.BasicConstraints;
-import org.bouncycastle.asn1.x509.Extension;
-import org.bouncycastle.asn1.x509.KeyUsage;
-import org.bouncycastle.cert.CertIOException;
-import org.bouncycastle.cert.X509CertificateHolder;
-import org.bouncycastle.cert.X509v3CertificateBuilder;
-import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
-import org.bouncycastle.cert.jcajce.JcaX509ExtensionUtils;
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
-import org.bouncycastle.operator.ContentSigner;
-import org.bouncycastle.operator.OperatorCreationException;
-import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
-import org.bouncycastle.pkcs.PKCS10CertificationRequest;
-import org.bouncycastle.pkcs.jcajce.JcaPKCS10CertificationRequestBuilder;
-import org.bouncycastle.util.encoders.Base64;
-
 import java.math.BigInteger;
 import java.security.InvalidKeyException;
 import java.security.KeyPair;
@@ -28,6 +12,26 @@ import java.security.SignatureException;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+
+import org.bouncycastle.asn1.ASN1ObjectIdentifier;
+import org.bouncycastle.asn1.x500.X500Name;
+import org.bouncycastle.asn1.x509.AuthorityKeyIdentifier;
+import org.bouncycastle.asn1.x509.BasicConstraints;
+import org.bouncycastle.asn1.x509.Extension;
+import org.bouncycastle.asn1.x509.KeyUsage;
+import org.bouncycastle.asn1.x509.SubjectKeyIdentifier;
+import org.bouncycastle.cert.CertIOException;
+import org.bouncycastle.cert.X509CertificateHolder;
+import org.bouncycastle.cert.X509v3CertificateBuilder;
+import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
+import org.bouncycastle.cert.jcajce.JcaX509ExtensionUtils;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.operator.ContentSigner;
+import org.bouncycastle.operator.OperatorCreationException;
+import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
+import org.bouncycastle.pkcs.PKCS10CertificationRequest;
+import org.bouncycastle.pkcs.jcajce.JcaPKCS10CertificationRequestBuilder;
+import org.bouncycastle.util.encoders.Base64;
 
 /**
  * <p>
@@ -82,13 +86,13 @@ public class CertificateGenerator {
 	 */
 	public X509Certificate createCertificate(CertificateInfo info, KeyPair keyPair) {
 		try {
-			var csr = createCSR(info, keyPair.getPublic());
-			var certBuilder = getCertBuilder(info, csr);
+			PKCS10CertificationRequest csr = createCSR(info, keyPair.getPublic());
+			X509v3CertificateBuilder certBuilder = getCertBuilder(info, csr);
 
 			addExtensions(certBuilder, csr);
 
-			var issuedCertHolder = certBuilder.build(csrContentSigner);
-			var issuedCert = new JcaX509CertificateConverter()
+			X509CertificateHolder issuedCertHolder = certBuilder.build(csrContentSigner);
+			X509Certificate issuedCert = new JcaX509CertificateConverter()
 					.setProvider(BC)
 					.getCertificate(issuedCertHolder);
 
@@ -113,26 +117,26 @@ public class CertificateGenerator {
 	private void addExtensions(X509v3CertificateBuilder certBuilder,
 			PKCS10CertificationRequest csr) {
 		try {
-			var extensionUtils = new JcaX509ExtensionUtils();
+			JcaX509ExtensionUtils extensionUtils = new JcaX509ExtensionUtils();
 
 			// Use BasicConstraints to say that this certificate is not a CA
 			certBuilder.addExtension(Extension.basicConstraints, true,
 					new BasicConstraints(false));
 
 			// Add issuer key identifier as an Extension
-			var certCA = new JcaX509CertificateConverter().getCertificate(certAuth);
-			var authId = extensionUtils.createAuthorityKeyIdentifier(certCA);
-			var keyIdCA = Extension.authorityKeyIdentifier;
+			X509Certificate certCA = new JcaX509CertificateConverter().getCertificate(certAuth);
+			AuthorityKeyIdentifier authId = extensionUtils.createAuthorityKeyIdentifier(certCA);
+			ASN1ObjectIdentifier keyIdCA = Extension.authorityKeyIdentifier;
 			certBuilder.addExtension(keyIdCA, false, authId);
 
 			// Add subject key identifier as an Extension
-			var subjectId = extensionUtils.createSubjectKeyIdentifier(
+			SubjectKeyIdentifier subjectId = extensionUtils.createSubjectKeyIdentifier(
 					csr.getSubjectPublicKeyInfo());
-			var keyIdSubject = Extension.subjectKeyIdentifier;
+			ASN1ObjectIdentifier keyIdSubject = Extension.subjectKeyIdentifier;
 			certBuilder.addExtension(keyIdSubject, false, subjectId);
 
 			// Add intended key usage Extension
-			var keyUsage = new KeyUsage(KeyUsage.digitalSignature);
+			KeyUsage keyUsage = new KeyUsage(KeyUsage.digitalSignature);
 			certBuilder.addExtension(Extension.keyUsage, false, keyUsage);
 		} catch (NoSuchAlgorithmException | CertIOException | CertificateException e) {
 			throw new RuntimeException("Error while adding the extensions to the "
@@ -146,7 +150,7 @@ public class CertificateGenerator {
 	 */
 	private ContentSigner getCsrContentSigner() {
 		if (csrContentSigner == null) {
-			var csrBuilder = new JcaContentSignerBuilder(SIGNATURE_ALGORITHM);
+			JcaContentSignerBuilder csrBuilder = new JcaContentSignerBuilder(SIGNATURE_ALGORITHM);
 			csrBuilder.setProvider(BC);
 
 			// Sign the new KeyPair with the CA private key
@@ -162,8 +166,8 @@ public class CertificateGenerator {
 
 	private X509v3CertificateBuilder getCertBuilder(CertificateInfo info,
 			PKCS10CertificationRequest csr) {
-		var randomLong = new SecureRandom().nextLong();
-		var issuedCertSerialNum = new BigInteger(Long.toString(randomLong));
+		long randomLong = new SecureRandom().nextLong();
+		BigInteger issuedCertSerialNum = new BigInteger(Long.toString(randomLong));
 
 		// Use the signed KeyPair and CSR to generate an issued Certificate
 		// Here serial number is randomly generated. In general, CAs use
@@ -175,14 +179,14 @@ public class CertificateGenerator {
 
 	private PKCS10CertificationRequest createCSR(CertificateInfo info, PublicKey
 			publicKey) {
-		var subject = info.subject().asX500Name();
+		X500Name subject = info.subject().asX500Name();
 		if (subject.getRDNs().length == 0) {
 			throw new RuntimeException("Error while processing the X500 name of the "
 					+ "license subject: " + info.subject().asRDNString());
 		}
 
-		var builder = new JcaPKCS10CertificationRequestBuilder(subject, publicKey);
-		var csrContentSigner = getCsrContentSigner();
+		JcaPKCS10CertificationRequestBuilder builder = new JcaPKCS10CertificationRequestBuilder(subject, publicKey);
+		ContentSigner csrContentSigner = getCsrContentSigner();
 		return builder.build(csrContentSigner);
 	}
 
@@ -192,7 +196,7 @@ public class CertificateGenerator {
 	 */
 	public static String toBase64(X509Certificate certificate)
 			throws CertificateEncodingException {
-		var bytes = certificate.getEncoded();
+		byte[] bytes = certificate.getEncoded();
 		return BEGIN + new String(Base64.encode(bytes)) + END;
 	}
 
