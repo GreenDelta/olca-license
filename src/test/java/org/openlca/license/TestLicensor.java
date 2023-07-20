@@ -40,9 +40,14 @@ public class TestLicensor {
 
 	private File initLibrary(CertificateInfo info) throws IOException,
 			URISyntaxException {
+		var licensor = Licensor.getInstance(ca);
+		return initLibrary(licensor, info);
+	}
+
+	private File initLibrary(Licensor licensor, CertificateInfo info)
+			throws IOException, URISyntaxException {
 		var rawLibrary = tempFolder.newFile("raw.zlib");
 		var library = tempFolder.newFile("library.zlib");
-		var licensor = Licensor.getInstance(ca);
 
 		try (var input = TestUtils.createTestLibrary(rawLibrary);
 				 var output = new ZipOutputStream(new FileOutputStream(library))) {
@@ -122,6 +127,38 @@ public class TestLicensor {
 		var credentials = new Credentials(email, PASSWORD_LIB);
 		var status = license.status(libraryFolder, credentials);
 		assertEquals(LicenseStatus.EXPIRED, status);
+	}
+
+	@Test
+	public void testMaxEndDate() throws IOException, URISyntaxException {
+		var licensor = Licensor.getInstance(ca);
+		var info = getMaxEndDateCertificateInfo(licensor);
+		var libraryFolder = initLibrary(licensor, info);
+		var license = License.of(libraryFolder).orElse(null);
+		assertNotNull(license);
+
+		var email = info.subject().email();
+		var credentials = new Credentials(email, PASSWORD_LIB);
+		var status = license.status(libraryFolder, credentials);
+		assertEquals(LicenseStatus.VALID, status);
+		var expectedEndDate = licensor.getCertificateAuthority().getNotAfter();
+		assertEquals(license.getInfo().notAfter(), expectedEndDate);
+	}
+
+	@Test
+	public void testOverEndDate() throws IOException, URISyntaxException {
+		var licensor = Licensor.getInstance(ca);
+		var info = getAfterDateCertificateInfo(licensor);
+		var libraryFolder = initLibrary(licensor, info);
+		var license = License.of(libraryFolder).orElse(null);
+		assertNotNull(license);
+
+		var email = info.subject().email();
+		var credentials = new Credentials(email, PASSWORD_LIB);
+		var status = license.status(libraryFolder, credentials);
+		assertEquals(LicenseStatus.VALID, status);
+		var expectedEndDate = licensor.getCertificateAuthority().getNotAfter();
+		assertEquals(license.getInfo().notAfter(), expectedEndDate);
 	}
 
 	@Test

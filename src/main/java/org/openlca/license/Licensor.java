@@ -33,6 +33,7 @@ import java.security.Security;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.zip.ZipEntry;
@@ -63,7 +64,6 @@ public class Licensor {
 	private static final String BC = "BC";
 	private static final String KEY_ALGORITHM = "RSA";
 	public static final String JSON = "license.json";
-	private static final long SIZE_LIMIT = 1_000_000;
 	public static List<String> INDICES = List.of("index_A", "index_B", "index_C");
 	public static final int BUFFER_SIZE = 8_192;
 
@@ -129,7 +129,7 @@ public class Licensor {
 	 * The ZIP streams should be created with a 'try'-with-resources statement.
 	 * </p>
 	 *
-	 * @param input  the data library as a ZipIntutStream,
+	 * @param input  the data library as a ZipInputStream,
 	 * @param output the ZipOutputSteam on which the licensed data library is
 	 *               written,
 	 * @param pass   the user password that is used to encrypt the data library
@@ -222,8 +222,8 @@ public class Licensor {
 	 */
 	private String getAuthority() {
 		try {
-			return CertificateGenerator.toBase64(getAuthorityCertificate());
-		} catch (CertificateException e) {
+			return CertificateGenerator.toBase64(getCertificateAuthority());
+		} catch (CertificateEncodingException e) {
 			throw new RuntimeException(e);
 		}
 	}
@@ -231,7 +231,7 @@ public class Licensor {
 	/**
 	 * Returns the Certificate Authority certificate as {@link X509Certificate}.
 	 */
-	public X509Certificate getAuthorityCertificate() {
+	public X509Certificate getCertificateAuthority() {
 		try {
 			return new JcaX509CertificateConverter()
 					.setProvider(BC)
@@ -239,6 +239,25 @@ public class Licensor {
 		} catch (CertificateException e) {
 			throw new RuntimeException(e);
 		}
+	}
+
+	/**
+	 * Returns either the preferred end date if it is not null and earlier than
+	 * the CA end date, otherwise it returns the CA end date.
+	 */
+	public Date determineEndDate(Date preferredEndDate) {
+		var caEndDate = getCertificateAuthority().getNotAfter();
+		if (preferredEndDate == null)
+			return caEndDate;
+
+		return preferredEndDate.after(caEndDate) ? caEndDate : preferredEndDate;
+	}
+
+	/**
+	 * Returns the certificate authority end date.
+	 */
+	public Date determineEndDate() {
+		return determineEndDate(null);
 	}
 
 	/**

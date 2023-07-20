@@ -46,6 +46,27 @@ public class TestUtils {
 		return new CertificateInfo(startDate, endDate, getSubject(), getIssuer());
 	}
 
+	public static CertificateInfo getAfterDateCertificateInfo(Licensor licensor) {
+		var calendar = Calendar.getInstance();
+		calendar.add(Calendar.MONTH, -1);
+		var startDate = calendar.getTime();
+		calendar.add(Calendar.YEAR, 100);
+		var preferredEndDate = calendar.getTime();
+
+		var endDate = licensor.determineEndDate(preferredEndDate);
+
+		return new CertificateInfo(startDate, endDate, getSubject(), getIssuer());
+	}
+
+	public static CertificateInfo getMaxEndDateCertificateInfo(Licensor licensor) {
+		var calendar = Calendar.getInstance();
+		calendar.add(Calendar.MONTH, -1);
+		var startDate = calendar.getTime();
+		var endDate = licensor.determineEndDate();
+
+		return new CertificateInfo(startDate, endDate, getSubject(), getIssuer());
+	}
+
 	public static CertificateInfo getNotYetValidCertificateInfo() {
 		var calendar = Calendar.getInstance();
 		calendar.add(Calendar.MONTH, 1);
