@@ -41,17 +41,23 @@ public class TestLicensor {
 	private File initLibrary(CertificateInfo info) throws IOException,
 			URISyntaxException {
 		var licensor = Licensor.getInstance(ca);
-		return initLibrary(licensor, info);
+		return initLibrary(licensor, info, PASSWORD_LIB);
 	}
 
-	private File initLibrary(Licensor licensor, CertificateInfo info)
+	private File initLibrary(CertificateInfo info, char[] password)
 			throws IOException, URISyntaxException {
+		var licensor = Licensor.getInstance(ca);
+		return initLibrary(licensor, info, password);
+	}
+
+	private File initLibrary(Licensor licensor, CertificateInfo info,
+		  char[] password)	throws IOException, URISyntaxException {
 		var rawLibrary = tempFolder.newFile("raw.zlib");
 		var library = tempFolder.newFile("library.zlib");
 
 		try (var input = TestUtils.createTestLibrary(rawLibrary);
 				 var output = new ZipOutputStream(new FileOutputStream(library))) {
-			licensor.license(input, output, PASSWORD_LIB, info);
+			licensor.license(input, output, password, info);
 		}
 
 		var libraryFolder = tempFolder.newFolder("library");
@@ -99,6 +105,31 @@ public class TestLicensor {
 	}
 
 	@Test
+	public void testNullPassword() {
+		var info = getValidCertificateInfo();
+		assertThrows(RuntimeException.class, () -> initLibrary(info, null));
+	}
+
+	@Test
+	public void testEmptyPassword() {
+		var info = getValidCertificateInfo();
+		assertThrows(RuntimeException.class, () -> initLibrary(info, "".toCharArray()));
+	}
+
+	@Test
+	public void testInvertedDate() {
+		var info = getInvertedDateCertificateInfo();
+		assertThrows(RuntimeException.class,
+				() -> initLibrary(info, null));
+	}
+
+	@Test
+	public void testAfterCADate() {
+		var info = getAfterCADateCertificateInfo();
+		assertThrows(RuntimeException.class, () -> initLibrary(info, null));
+	}
+
+	@Test
 	public void testSignatureStatus() throws IOException, URISyntaxException {
 		var info = getValidCertificateInfo();
 		var libraryFolder = initLibrary(info);
@@ -133,7 +164,7 @@ public class TestLicensor {
 	public void testMaxEndDate() throws IOException, URISyntaxException {
 		var licensor = Licensor.getInstance(ca);
 		var info = getMaxEndDateCertificateInfo(licensor);
-		var libraryFolder = initLibrary(licensor, info);
+		var libraryFolder = initLibrary(licensor, info, PASSWORD_LIB);
 		var license = License.of(libraryFolder).orElse(null);
 		assertNotNull(license);
 
@@ -149,7 +180,7 @@ public class TestLicensor {
 	public void testOverEndDate() throws IOException, URISyntaxException {
 		var licensor = Licensor.getInstance(ca);
 		var info = getAfterDateCertificateInfo(licensor);
-		var libraryFolder = initLibrary(licensor, info);
+		var libraryFolder = initLibrary(licensor, info, PASSWORD_LIB);
 		var license = License.of(libraryFolder).orElse(null);
 		assertNotNull(license);
 

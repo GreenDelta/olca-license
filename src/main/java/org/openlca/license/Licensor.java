@@ -138,6 +138,8 @@ public class Licensor {
 	 */
 	public void license(ZipInputStream input, ZipOutputStream output, char[] pass,
 			CertificateInfo info) throws IOException {
+		checkValidity(pass, info);
+
 		keyPair = generateKeyPair();
 
 		var certificate = createCertificate(info);
@@ -157,6 +159,16 @@ public class Licensor {
 
 		var license = new License(certificate, signatures, authority);
 		writeLicenseToJson(license, output);
+	}
+
+	private void checkValidity(char[] pass, CertificateInfo info) {
+		if (info.notAfter().before(info.notBefore())
+				|| info.notAfter().after(certAuthority.getNotAfter()))
+			throw new RuntimeException("Error while licensing the library. The start "
+					+ "and end date provided are not valid.");
+		if (pass == null || pass.length == 0)
+			throw new RuntimeException("Error while licensing the library. The "
+					+ "password provided is null or empty.");
 	}
 
 	/**
