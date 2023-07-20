@@ -227,10 +227,20 @@ public class Licensor {
 	 */
 	private String getAuthority() {
 		try {
-			X509Certificate authority = new JcaX509CertificateConverter()
+			return CertificateGenerator.toBase64(getAuthorityCertificate());
+		} catch (CertificateException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	/**
+	 * Returns the Certificate Authority certificate as {@link X509Certificate}.
+	 */
+	public X509Certificate getAuthorityCertificate() {
+		try {
+			return new JcaX509CertificateConverter()
 					.setProvider(BC)
 					.getCertificate(certAuthority);
-			return CertificateGenerator.toBase64(authority);
 		} catch (CertificateException e) {
 			throw new RuntimeException(e);
 		}
