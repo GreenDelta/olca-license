@@ -104,7 +104,7 @@ public class TestUtils {
 	}
 
 	static Person getIssuer() {
-		return new Person("Nexus CA", "DE", "", "Green Delta");
+		return new Person("Nexus CA", "DE", "gd@greendelta.com", "GreenDelta GmbH");
 	}
 
 	public static ZipInputStream createTestLibrary(File file) throws IOException,
