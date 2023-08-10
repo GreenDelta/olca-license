@@ -30,6 +30,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.openlca.license.Licensor.INDICES;
 import static org.openlca.license.Licensor.JSON;
@@ -119,13 +120,13 @@ public record License(String certificate, Map<String, String> signatures,
 	 *   <li>the authenticity of the certificate,</li>
 	 *   <li>the start and expiry date of the license,</li>
 	 *   <li>the signatures of the library files,</li>
-	 *   <li>the email address of the user,</li>
+	 *   <li>the username or email address of the user,</li>
 	 *   <li>the password of the user.</li>
 	 * </ol>
 	 *
 	 * @param library the folder of the library
 	 * @param cipher a decryption cipher to test the password
-	 * @param user the email of the user
+	 * @param user the username or email address of the user
 	 */
 	public LicenseStatus status(File library, Cipher cipher, String user) throws
 			IOException {
@@ -149,7 +150,7 @@ public record License(String certificate, Map<String, String> signatures,
 		if (!signAgent.verify(library, blacklist))
 			return LicenseStatus.CORRUPTED;
 
-		if (!user.equals(info.subject().email()))
+		if (!checkSubject(user))
 			return LicenseStatus.WRONG_USER;
 
 		if (!checkEncryption(library, cipher)) {
@@ -157,6 +158,13 @@ public record License(String certificate, Map<String, String> signatures,
 		}
 
 		return LicenseStatus.VALID;
+	}
+
+	private boolean checkSubject(String user) {
+		if (user == null || user.isBlank())
+			return false;
+		var subject = getInfo().subject();
+		return Set.of(subject.userName(), subject.email()).contains(user);
 	}
 
 	/**
@@ -193,13 +201,13 @@ public record License(String certificate, Map<String, String> signatures,
 	}
 
 	public Session createSession(Credentials credentials) {
-		if (!credentials.user().equals(getInfo().subject().email()))
+		if (!checkSubject(credentials.user()))
 			return null;
 		var password = credentials.password();
 		var salt = getCertPublicKey().getEncoded();
 		var secret = Crypto.getSecret(password, salt);
 		var encoded = new String(Base64.encode(secret));
-		return new Session(getInfo().subject().email(), encoded);
+		return new Session(credentials.user(), encoded);
 	}
 
 	public Cipher getDecryptCipher(Credentials credentials) {
@@ -209,7 +217,7 @@ public record License(String certificate, Map<String, String> signatures,
 	}
 
 	public Cipher getDecryptCipher(Session session) {
-		if (!session.user().equals(getInfo().subject().email()))
+		if (!checkSubject(session.user()))
 			return null;
 		var decoded = Base64.decode(session.secret());
 		return Crypto.getCipher(Cipher.DECRYPT_MODE, decoded);

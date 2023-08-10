@@ -219,6 +219,19 @@ public class TestLicensor {
 	}
 
 	@Test
+	public void testStatusUserName() throws IOException, URISyntaxException {
+		var info = getValidCertificateInfo();
+		var libraryFolder = initLibrary(info);
+		var license = License.of(libraryFolder).orElse(null);
+		assertNotNull(license);
+
+		var userName = info.subject().userName();
+		var credentials = new Credentials(userName, PASSWORD_LIB);
+		var status = license.status(libraryFolder, credentials);
+		assertEquals(LicenseStatus.VALID, status);
+	}
+
+	@Test
 	public void testStatusWrongPassword() throws IOException, URISyntaxException {
 		var info = getValidCertificateInfo();
 		var libraryFolder = initLibrary(info);

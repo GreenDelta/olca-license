@@ -99,12 +99,12 @@ public class TestUtils {
 	}
 
 	static Person getSubject() {
-		return new Person("John Doe", "US", "john@green-company.com",
+		return new Person("john", "John Doe", "US", "john@green-company.com",
 				"Green Company");
 	}
 
 	static Person getIssuer() {
-		return new Person("Nexus CA", "DE", "gd@greendelta.com", "GreenDelta GmbH");
+		return new Person("", "Nexus CA", "DE", "gd@greendelta.com", "GreenDelta GmbH");
 	}
 
 	public static ZipInputStream createTestLibrary(File file) throws IOException,

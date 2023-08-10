@@ -80,7 +80,8 @@ public class CertificateGenerator {
 	 * the license information and the public key provided. The CSR is then signed
 	 * by the certificate authority.
 	 */
-	public X509Certificate createCertificate(CertificateInfo info, KeyPair keyPair) {
+	public X509Certificate createCertificate(CertificateInfo info,
+			KeyPair keyPair) {
 		try {
 			var csr = createCSR(info, keyPair.getPublic());
 			var certBuilder = getCertBuilder(info, csr);
@@ -175,6 +176,12 @@ public class CertificateGenerator {
 
 	private PKCS10CertificationRequest createCSR(CertificateInfo info, PublicKey
 			publicKey) {
+		var name = info.subject().userName();
+		var email = info.subject().email();
+		if (name == null || email == null || name.isEmpty() || email.isEmpty()) {
+			throw new RuntimeException("Error while creating the CSR, the user name "
+					+ "and the email cannot be null or empty.");
+		}
 		var subject = info.subject().asX500Name();
 		if (subject.getRDNs().length == 0) {
 			throw new RuntimeException("Error while processing the X500 name of the "
