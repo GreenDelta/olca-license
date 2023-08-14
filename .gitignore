@@ -4,3 +4,6 @@
 /target/
 /outputs/
 /library/
+/.classpath
+/.project
+/.settings/
