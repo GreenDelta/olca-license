@@ -18,11 +18,12 @@ public class TestCertificateInfo {
 
 	@Test
 	public void testPersonOf() {
-		String rdn = "CN=John Doe,C=DE,E=john.doe@mail.com,O=Green Corp.";
+		String rdn = "UID=john.doe,CN=John Doe,C=DE,E=john.doe@mail.com,O=Green Corp.";
 		X500Name x500Name = new X500Name(rdn);
 		Person personFromX500Name = Person.of(x500Name);
 		Person personFromString = Person.of(rdn);
 
+		assertEquals("john.doe", personFromX500Name.userName());
 		assertEquals("John Doe", personFromX500Name.commonName());
 		assertEquals("DE", personFromX500Name.country());
 		assertEquals("john.doe@mail.com", personFromX500Name.email());

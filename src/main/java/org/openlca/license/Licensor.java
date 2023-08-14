@@ -41,6 +41,7 @@ import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 import org.bouncycastle.util.encoders.Base64;
 import org.openlca.license.certificate.CertificateGenerator;
 import org.openlca.license.certificate.CertificateInfo;
+import org.openlca.license.certificate.Person;
 import org.openlca.license.signature.Signer;
 
 import com.google.gson.Gson;
@@ -166,6 +167,33 @@ public class Licensor {
 		License license = new License(certificate, signatures, authority);
 		writeLicenseToJson(license, output);
 	}
+	
+	/**
+	 * Create a {@link CertificateInfo} instance with the subject of the
+	 * certificate authority as issuer.
+	 * @param notBefore the starting date,
+	 * @param notAfter the end date (this date is checked against the end date of
+	 *                the certificate authority),
+	 * @param subject the owner of the certificate.
+	 */
+	public CertificateInfo createCertificateInfo(Date notBefore, Date notAfter,
+			Person subject) {
+		Person issuer = Person.of(certAuthority.getSubject());
+		Date endDate = determineEndDate(notAfter);
+		return new CertificateInfo(notBefore, endDate, subject, issuer);
+	}
+
+	/**
+	 * Create a {@link CertificateInfo} instance with the subject of the
+	 * certificate authority as issuer. The endDate is set as the end date of the
+	 * certificate authority.
+	 * @param notBefore the starting date,
+	 * @param subject the owner of the certificate.
+	 */
+	public CertificateInfo createCertificateInfo(Date notBefore, Person subject) {
+		return createCertificateInfo(notBefore, null, subject);
+	}
+
 
 	private void checkValidity(char[] pass, CertificateInfo info) {
 		if (info.notAfter().before(info.notBefore())

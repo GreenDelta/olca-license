@@ -95,7 +95,7 @@ public class TestLicensor {
 
 	@Test
 	public void testCertificateInfo() throws IOException, URISyntaxException {
-		CertificateInfo info = getValidCertificateInfo();
+		CertificateInfo info = getValidCertificateInfo(Licensor.getInstance(ca));
 		File libraryFolder = initLibrary(info);
 		License license = License.of(libraryFolder).orElse(null);
 
@@ -106,7 +106,7 @@ public class TestLicensor {
 
 	@Test
 	public void testValidStatus() throws IOException, URISyntaxException {
-		CertificateInfo info = getValidCertificateInfo();
+		CertificateInfo info = getValidCertificateInfo(Licensor.getInstance(ca));
 		File libraryFolder = initLibrary(info);
 		License license = License.of(libraryFolder).orElse(null);
 		assertNotNull(license);
@@ -118,14 +118,14 @@ public class TestLicensor {
 	}
 
 	@Test
-	public void testNullPassword() {
-		CertificateInfo info = getValidCertificateInfo();
+	public void testNullPassword() throws IOException {
+		CertificateInfo info = getValidCertificateInfo(Licensor.getInstance(ca));
 		assertThrows(RuntimeException.class, () -> initLibrary(info, null));
 	}
 
 	@Test
-	public void testEmptyPassword() {
-		CertificateInfo info = getValidCertificateInfo();
+	public void testEmptyPassword() throws IOException {
+		CertificateInfo info = getValidCertificateInfo(Licensor.getInstance(ca));
 		assertThrows(RuntimeException.class, () -> initLibrary(info, "".toCharArray()));
 	}
 
@@ -143,7 +143,7 @@ public class TestLicensor {
 	
 	@Test
 	public void testSignatureStatus() throws IOException, URISyntaxException {
-		CertificateInfo info = getValidCertificateInfo();
+		CertificateInfo info = getValidCertificateInfo(Licensor.getInstance(ca));
 		File libraryFolder = initLibrary(info);
 
 		// Adding a file to make the signature check fail
@@ -220,7 +220,7 @@ public class TestLicensor {
 
 	@Test
 	public void testStatusWrongEmail() throws IOException, URISyntaxException {
-		CertificateInfo info = getValidCertificateInfo();
+		CertificateInfo info = getValidCertificateInfo(Licensor.getInstance(ca));
 		File libraryFolder = initLibrary(info);
 		License license = License.of(libraryFolder).orElse(null);
 		assertNotNull(license);
@@ -233,7 +233,7 @@ public class TestLicensor {
 
 	@Test
 	public void testStatusUserName() throws IOException, URISyntaxException {
-		CertificateInfo info = getValidCertificateInfo();
+		CertificateInfo info = getValidCertificateInfo(Licensor.getInstance(ca));
 		File libraryFolder = initLibrary(info);
 		License license = License.of(libraryFolder).orElse(null);
 		assertNotNull(license);
@@ -246,7 +246,7 @@ public class TestLicensor {
 
 	@Test
 	public void testStatusWrongPassword() throws IOException, URISyntaxException {
-		CertificateInfo info = getValidCertificateInfo();
+		CertificateInfo info = getValidCertificateInfo(Licensor.getInstance(ca));
 		File libraryFolder = initLibrary(info);
 		License license = License.of(libraryFolder).orElse(null);
 		assertNotNull(license);
@@ -261,7 +261,7 @@ public class TestLicensor {
 	@Test
 	public void testGetCipherFromCredentials() throws IOException,
 			URISyntaxException, BadPaddingException {
-		CertificateInfo info = getValidCertificateInfo();
+		CertificateInfo info = getValidCertificateInfo(Licensor.getInstance(ca));
 		File libraryFolder = initLibrary(info);
 		License license = License.of(libraryFolder).orElse(null);
 		assertNotNull(license);
@@ -286,7 +286,7 @@ public class TestLicensor {
 	@Test
 	public void testGetCipherFromSecret() throws IOException,
 			URISyntaxException, BadPaddingException {
-		CertificateInfo info = getValidCertificateInfo();
+		CertificateInfo info = getValidCertificateInfo(Licensor.getInstance(ca));
 		File libraryFolder = initLibrary(info);
 		License license = License.of(libraryFolder).orElse(null);
 		assertNotNull(license);
@@ -313,7 +313,7 @@ public class TestLicensor {
 
 	@Test
 	public void testStatusFromSession() throws IOException, URISyntaxException {
-		CertificateInfo info = getValidCertificateInfo();
+		CertificateInfo info = getValidCertificateInfo(Licensor.getInstance(ca));
 		File libraryFolder = initLibrary(info);
 
 		License license = License.of(libraryFolder).orElse(null);

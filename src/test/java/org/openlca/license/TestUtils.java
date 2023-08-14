@@ -38,16 +38,15 @@ public class TestUtils {
 		return new CertificateInfo(startDate, endDate, getSubject(), getIssuer());
 	}
 
-	public static CertificateInfo getValidCertificateInfo() {
+	public static CertificateInfo getValidCertificateInfo(Licensor licensor) {
 		Calendar calendar = Calendar.getInstance();
 		calendar.add(Calendar.MONTH, -1);
 		Date startDate = calendar.getTime();
 		calendar.add(Calendar.YEAR, 1);
 		Date endDate = calendar.getTime();
 
-		return new CertificateInfo(startDate, endDate, getSubject(), getIssuer());
+		return licensor.createCertificateInfo(startDate, endDate, getSubject());
 	}
-
 
 	public static CertificateInfo getInvertedDateCertificateInfo() {
 		Calendar calendar = Calendar.getInstance();
@@ -85,9 +84,8 @@ public class TestUtils {
 		Calendar calendar = Calendar.getInstance();
 		calendar.add(Calendar.MONTH, -1);
 		Date startDate = calendar.getTime();
-		Date endDate = licensor.determineEndDate();
-
-		return new CertificateInfo(startDate, endDate, getSubject(), getIssuer());
+		
+		return licensor.createCertificateInfo(startDate, getSubject());
 	}
 
 	public static CertificateInfo getNotYetValidCertificateInfo() {
