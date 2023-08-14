@@ -1,14 +1,11 @@
 package org.openlca.license;
 
 import com.google.gson.GsonBuilder;
-import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
-import org.bouncycastle.openssl.PEMException;
-import org.bouncycastle.openssl.PEMParser;
-import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 import org.bouncycastle.util.encoders.Base64;
+import org.openlca.license.certificate.CertUtils;
 import org.openlca.license.certificate.CertificateGenerator;
 import org.openlca.license.certificate.CertificateInfo;
 import org.openlca.license.certificate.Person;
@@ -18,11 +15,8 @@ import javax.crypto.BadPaddingException;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -108,11 +102,15 @@ public class Licensor {
 	public static Licensor getInstance(File ca) throws
 			IOException {
 		var certificateName = ca.getName() + ".crt";
-		var parser = getPEMParser(new File(ca, certificateName));
-		var certificate = (X509CertificateHolder) parser.readObject();
 
-		var publicKey = getPublicKeyCA(certificate);
-		var privateKey = getPrivateKeyCA(ca);
+		var file = new File(ca, certificateName);
+		var certificate = CertUtils.getX509CertificateHolder(file);
+		if (certificate == null) {
+			throw new IOException("Error while parsing the CA certificate.");
+		}
+
+		var publicKey = CertUtils.getPublicKeyCA(certificate);
+		var privateKey = CertUtils.getPrivateKeyCA(ca);
 
 		if (privateKey == null) {
 			throw new IOException("Error while getting the private key from the "
@@ -293,13 +291,6 @@ public class Licensor {
 	}
 
 	/**
-	 * Returns the certificate authority end date.
-	 */
-	public Date determineEndDate() {
-		return determineEndDate(null);
-	}
-
-	/**
 	 * Creates a new certificate by calling the {@link CertificateGenerator}
 	 * instantiated with the certificate authority.
 	 */
@@ -314,51 +305,6 @@ public class Licensor {
 			throw new RuntimeException("Error while encoding the license certificate "
 					+ "to Base64.", e);
 		}
-	}
-
-	/**
-	 * Returns the {@link PublicKey} of a certificate.
-	 */
-	private static PublicKey getPublicKeyCA(X509CertificateHolder cert)
-			throws PEMException {
-		var publicKeyInfo = cert.getSubjectPublicKeyInfo();
-		var converter = new JcaPEMKeyConverter();
-		return converter.getPublicKey(publicKeyInfo);
-	}
-
-	/**
-	 * Returns the {@link PrivateKey} from a certificate authority folder
-	 * structured in respect with the industry standard:
-	 * </p>
-	 * <p>
-	 * The industrial standard for a CA file structure is as follow:
-	 *   <ul>
-	 *     <li>
-	 *       private
-	 *       <ul>
-	 *         <li>[folder libName].key</li>
-	 *       </ul>
-	 *     </li>
-	 *     <li>[folder libName].crt</li>
-	 *   </ul>
-	 * </p>
-	 */
-	private static PrivateKey getPrivateKeyCA(File ca)
-			throws IOException {
-		var privateDir = new File(ca, "private");
-		var keyName = ca.getName() + ".key";
-		var parser = getPEMParser(new File(privateDir, keyName));
-
-		var converter = new JcaPEMKeyConverter();
-		if (parser.readObject() instanceof PrivateKeyInfo keyInfo)
-			return converter.getPrivateKey(keyInfo);
-		else return null;
-	}
-
-	public static PEMParser getPEMParser(File file) throws FileNotFoundException {
-		var stream = new FileInputStream(file);
-		var reader = new InputStreamReader(stream);
-		return new PEMParser(reader);
 	}
 
 	public static KeyPair generateKeyPair() {

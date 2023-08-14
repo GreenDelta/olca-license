@@ -57,8 +57,7 @@ public class TestCertificateGenerator {
 		var certURL = getClass().getResource(certName);
 		var certFile = new File(Objects.requireNonNull(certURL).toURI());
 
-		var parser = Licensor.getPEMParser(certFile);
-		return  (X509CertificateHolder) parser.readObject();
+		return CertUtils.getX509CertificateHolder(certFile);
 	}
 
 }

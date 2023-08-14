@@ -139,17 +139,16 @@ public class TestUtils {
 
 	public static void addToZipOut(ZipOutputStream zipOut, File file,
 			String name) throws IOException {
-		var fis = new FileInputStream(file);
+		try (var fis = new FileInputStream(file)) {
+			var zipEntry = new ZipEntry(name);
+			zipOut.putNextEntry(zipEntry);
 
-		var zipEntry = new ZipEntry(name);
-		zipOut.putNextEntry(zipEntry);
-
-		var bytes = new byte[BUFFER_SIZE];
-		int length;
-		while ((length = fis.read(bytes)) >= 0) {
-			zipOut.write(bytes, 0, length);
+			var bytes = new byte[BUFFER_SIZE];
+			int length;
+			while ((length = fis.read(bytes)) >= 0) {
+				zipOut.write(bytes, 0, length);
+			}
 		}
-		fis.close();
 	}
 
 	public static void extract(ZipInputStream zip, File target)

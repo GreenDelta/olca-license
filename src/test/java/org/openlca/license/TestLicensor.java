@@ -44,10 +44,10 @@ public class TestLicensor {
 		return initLibrary(licensor, info, PASSWORD_LIB);
 	}
 
-	private File initLibrary(CertificateInfo info, char[] password)
+	private void initLibrary(CertificateInfo info, char[] password)
 			throws IOException, URISyntaxException {
 		var licensor = Licensor.getInstance(ca);
-		return initLibrary(licensor, info, password);
+		initLibrary(licensor, info, password);
 	}
 
 	private File initLibrary(Licensor licensor, CertificateInfo info,

@@ -34,10 +34,12 @@ public class TestSession {
 			fos.write(json.getBytes());
 		}
 
-		var reader = new JsonReader(new FileReader(file));
-		var session = Session.fromJson(reader);
-		assertEquals(expected.user(), session.user());
-		assertEquals(expected.secret(), session.secret());
+		try (var reader = new FileReader(file);
+				 var jsonReader = new JsonReader(reader)) {
+			var session = Session.fromJson(jsonReader);
+			assertEquals(expected.user(), session.user());
+			assertEquals(expected.secret(), session.secret());
+		}
 	}
 
 }

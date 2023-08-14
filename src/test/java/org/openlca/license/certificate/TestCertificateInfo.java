@@ -71,19 +71,22 @@ public class TestCertificateInfo {
 	public void testReadLicense() throws IOException {
 		var certName = "test.crt";
 		var certURL = getClass().getResource(certName);
-		var info = CertificateInfo.of(Objects.requireNonNull(certURL).openStream());
-		var expectedInfo = TestUtils.getExpiredCertificateInfo();
+		try (var is = Objects.requireNonNull(certURL).openStream()) {
+			var info = CertificateInfo.of(is);
+			var expectedInfo = TestUtils.getExpiredCertificateInfo();
+			assertEquals(expectedInfo, info);
+		}
 
-		assertEquals(expectedInfo, info);
 	}
 
 	@Test
 	public void testValid() throws IOException {
 		var certName = "test.crt";
 		var certURL = getClass().getResource(certName);
-		var info = CertificateInfo.of(Objects.requireNonNull(certURL).openStream());
-
-		assertFalse(info.isValid());
+		try (var is = Objects.requireNonNull(certURL).openStream()) {
+			var info = CertificateInfo.of(is);
+			assertFalse(info.isValid());
+		}
 	}
 
 }
