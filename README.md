@@ -6,7 +6,8 @@ A licensing framework for openLCA that can certify, sign and encrypt data librar
 
 - Create the Root CA - that has to later be stored offline - with `root_ca.sh`.
 - Create the server CA (Nexus) subordinated from the Root CA with
-  `create_nexus_ca.sh`.
+  `nexus_ca.sh` and store the `nexus-ca` folder into the server
+  `/etc/ssl/certs/` directory.
 
 ## Certify a data library
 

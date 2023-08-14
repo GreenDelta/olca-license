@@ -2,6 +2,10 @@ package org.openlca.license.access;
 
 import java.util.Objects;
 
+/**
+ * @param user the username or the email of the user.
+ * @param password the password of the user.
+ */
 public class Credentials {
 
 	private final String user;

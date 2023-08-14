@@ -24,18 +24,24 @@ import org.bouncycastle.asn1.x500.style.IETFUtils;
  */
 public class Person {
 
+	private final String userName;
 	private final String commonName;
 	private final String country;
 	private final String email;
 	private final String organisation;
 
-	public Person(String commonName, String country, String email, String organisation) {
+	public Person(String userName, String commonName, String country, String email, String organisation) {
+		this.userName = userName;
 		this.commonName = commonName;
 		this.country = country;
 		this.email = email;
 		this.organisation = organisation;
 	}
 
+	public String userName() {
+		return userName;
+	}
+	
 	public String commonName() {
 		return commonName;
 	}
@@ -54,6 +60,7 @@ public class Person {
 
 	public static Person of(X500Name name) {
 		return new Person(
+				get(name, BCStyle.UID),
 				get(name, BCStyle.CN),
 				get(name, BCStyle.C),
 				get(name, BCStyle.E),
@@ -73,8 +80,8 @@ public class Person {
 	}
 
 	public String asRDNString() {
-		return String.format("CN=%s,C=%s,E=%s,O=%s", commonName, country, email,
-				organisation);
+		return String.format("UID=%s,CN=%s,C=%s,E=%s,O=%s",
+				userName, commonName, country, email, organisation);
 	}
 
 	public X500Name asX500Name() {
@@ -83,7 +90,7 @@ public class Person {
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(commonName, country, email, organisation);
+		return Objects.hash(userName, commonName, country, email, organisation);
 	}
 
 	@Override
@@ -93,10 +100,12 @@ public class Person {
 		if (!(obj instanceof Person))
 			return false;
 		Person other = (Person) obj;
-		return Objects.equals(commonName, other.commonName)
+		return Objects.equals(userName, other.userName)
+				&& Objects.equals(commonName, other.commonName)
 				&& Objects.equals(country, other.country)
 				&& Objects.equals(email, other.email)
 				&& Objects.equals(organisation, other.organisation);
 	}
+
 
 }

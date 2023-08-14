@@ -179,6 +179,12 @@ public class CertificateGenerator {
 
 	private PKCS10CertificationRequest createCSR(CertificateInfo info, PublicKey
 			publicKey) {
+		String name = info.subject().userName();
+		String email = info.subject().email();
+		if (name == null || email == null || name.isEmpty() || email.isEmpty()) {
+			throw new RuntimeException("Error while creating the CSR, the user name "
+					+ "and the email cannot be null or empty.");
+		}
 		X500Name subject = info.subject().asX500Name();
 		if (subject.getRDNs().length == 0) {
 			throw new RuntimeException("Error while processing the X500 name of the "

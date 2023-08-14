@@ -3,8 +3,13 @@ package org.openlca.license;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
+import static org.openlca.license.TestUtils.getAfterCADateCertificateInfo;
+import static org.openlca.license.TestUtils.getAfterDateCertificateInfo;
 import static org.openlca.license.TestUtils.getExpiredCertificateInfo;
+import static org.openlca.license.TestUtils.getInvertedDateCertificateInfo;
+import static org.openlca.license.TestUtils.getMaxEndDateCertificateInfo;
 import static org.openlca.license.TestUtils.getNotYetValidCertificateInfo;
 import static org.openlca.license.TestUtils.getValidCertificateInfo;
 
@@ -32,7 +37,6 @@ import org.openlca.license.access.LicenseStatus;
 import org.openlca.license.access.Session;
 import org.openlca.license.certificate.CertificateInfo;
 
-
 public class TestLicensor {
 
 	private File ca;
@@ -49,13 +53,24 @@ public class TestLicensor {
 
 	private File initLibrary(CertificateInfo info) throws IOException,
 			URISyntaxException {
+		Licensor licensor = Licensor.getInstance(ca);
+		return initLibrary(licensor, info, PASSWORD_LIB);
+	}
+	
+	private File initLibrary(CertificateInfo info, char[] password)
+			throws IOException, URISyntaxException {
+		Licensor licensor = Licensor.getInstance(ca);
+		return initLibrary(licensor, info, password);
+	}
+
+	private File initLibrary(Licensor licensor, CertificateInfo info,
+			char[] password) throws IOException, URISyntaxException {
 		File rawLibrary = tempFolder.newFile("raw.zlib");
 		File library = tempFolder.newFile("library.zlib");
-		Licensor licensor = Licensor.getInstance(ca);
-
+		
 		try (ZipInputStream input = TestUtils.createTestLibrary(rawLibrary);
-				 ZipOutputStream output = new ZipOutputStream(new FileOutputStream(library))) {
-			licensor.license(input, output, PASSWORD_LIB, info);
+				ZipOutputStream output = new ZipOutputStream(new FileOutputStream(library))) {
+			licensor.license(input, output, password, info);
 		}
 
 		File libraryFolder = tempFolder.newFolder("library");
@@ -103,6 +118,30 @@ public class TestLicensor {
 	}
 
 	@Test
+	public void testNullPassword() {
+		CertificateInfo info = getValidCertificateInfo();
+		assertThrows(RuntimeException.class, () -> initLibrary(info, null));
+	}
+
+	@Test
+	public void testEmptyPassword() {
+		CertificateInfo info = getValidCertificateInfo();
+		assertThrows(RuntimeException.class, () -> initLibrary(info, "".toCharArray()));
+	}
+
+	@Test
+	public void testInvertedDate() {
+		CertificateInfo info = getInvertedDateCertificateInfo();
+		assertThrows(RuntimeException.class, () -> initLibrary(info, null));
+	}
+
+	@Test
+	public void testAfterCADate() {
+		CertificateInfo info = getAfterCADateCertificateInfo();
+		assertThrows(RuntimeException.class, () -> initLibrary(info, null));
+	}
+	
+	@Test
 	public void testSignatureStatus() throws IOException, URISyntaxException {
 		CertificateInfo info = getValidCertificateInfo();
 		File libraryFolder = initLibrary(info);
@@ -132,6 +171,39 @@ public class TestLicensor {
 		LicenseStatus status = license.status(libraryFolder, credentials);
 		assertEquals(LicenseStatus.EXPIRED, status);
 	}
+	
+	@Test
+	public void testMaxEndDate() throws IOException, URISyntaxException {
+		Licensor licensor = Licensor.getInstance(ca);
+		CertificateInfo info = getMaxEndDateCertificateInfo(licensor);
+		File libraryFolder = initLibrary(licensor, info, PASSWORD_LIB);
+		License license = License.of(libraryFolder).orElse(null);
+		assertNotNull(license);
+
+		String email = info.subject().email();
+		Credentials credentials = new Credentials(email, PASSWORD_LIB);
+		LicenseStatus status = license.status(libraryFolder, credentials);
+		assertEquals(LicenseStatus.VALID, status);
+		Date expectedEndDate = licensor.getCertificateAuthority().getNotAfter();
+		assertEquals(license.getInfo().notAfter(), expectedEndDate);
+	}
+
+	@Test
+	public void testOverEndDate() throws IOException, URISyntaxException {
+		Licensor licensor = Licensor.getInstance(ca);
+		CertificateInfo info = getAfterDateCertificateInfo(licensor);
+		File libraryFolder = initLibrary(licensor, info, PASSWORD_LIB);
+		License license = License.of(libraryFolder).orElse(null);
+		assertNotNull(license);
+
+		String email = info.subject().email();
+		Credentials credentials = new Credentials(email, PASSWORD_LIB);
+		LicenseStatus status = license.status(libraryFolder, credentials);
+		assertEquals(LicenseStatus.VALID, status);
+		Date expectedEndDate = licensor.getCertificateAuthority().getNotAfter();
+		assertEquals(license.getInfo().notAfter(), expectedEndDate);
+	}
+
 
 	@Test
 	public void testStatusNotYetValid() throws IOException, URISyntaxException {
@@ -157,6 +229,19 @@ public class TestLicensor {
 		Credentials credentials = new Credentials(email, PASSWORD_LIB);
 		LicenseStatus status = license.status(libraryFolder, credentials);
 		assertEquals(LicenseStatus.WRONG_USER, status);
+	}
+
+	@Test
+	public void testStatusUserName() throws IOException, URISyntaxException {
+		CertificateInfo info = getValidCertificateInfo();
+		File libraryFolder = initLibrary(info);
+		License license = License.of(libraryFolder).orElse(null);
+		assertNotNull(license);
+
+		String userName = info.subject().userName();
+		Credentials credentials = new Credentials(userName, PASSWORD_LIB);
+		LicenseStatus status = license.status(libraryFolder, credentials);
+		assertEquals(LicenseStatus.VALID, status);
 	}
 
 	@Test
@@ -188,7 +273,7 @@ public class TestLicensor {
 		File decryptedFile = new File(libraryFolder, "index_A.bin");
 
 		try (FileInputStream in = new FileInputStream(encryptedFile);
-				 FileOutputStream out = new FileOutputStream(decryptedFile)) {
+				FileOutputStream out = new FileOutputStream(decryptedFile)) {
 			Crypto.doCrypto(cipher, in, out);
 		}
 		URL indexURL = TestUtils.class.getResource("index.bin");
@@ -216,7 +301,7 @@ public class TestLicensor {
 		File decryptedFile = new File(libraryFolder, "index_A.bin");
 
 		try (FileInputStream in = new FileInputStream(encryptedFile);
-				 FileOutputStream out = new FileOutputStream(decryptedFile)) {
+				FileOutputStream out = new FileOutputStream(decryptedFile)) {
 			Crypto.doCrypto(cipher, in, out);
 		}
 		URL indexURL = TestUtils.class.getResource("index.bin");

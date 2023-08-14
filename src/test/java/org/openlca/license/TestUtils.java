@@ -48,6 +48,48 @@ public class TestUtils {
 		return new CertificateInfo(startDate, endDate, getSubject(), getIssuer());
 	}
 
+
+	public static CertificateInfo getInvertedDateCertificateInfo() {
+		Calendar calendar = Calendar.getInstance();
+		calendar.add(Calendar.MONTH, -1);
+		Date startDate = calendar.getTime();
+		calendar.add(Calendar.YEAR, 1);
+		Date endDate = calendar.getTime();
+
+		return new CertificateInfo(endDate, startDate, getSubject(), getIssuer());
+	}
+
+	public static CertificateInfo getAfterCADateCertificateInfo() {
+		Calendar calendar = Calendar.getInstance();
+		calendar.add(Calendar.MONTH, -1);
+		Date startDate = calendar.getTime();
+		calendar.add(Calendar.YEAR, 100);
+		Date endDate = calendar.getTime();
+
+		return new CertificateInfo(endDate, startDate, getSubject(), getIssuer());
+	}
+
+	public static CertificateInfo getAfterDateCertificateInfo(Licensor licensor) {
+		Calendar calendar = Calendar.getInstance();
+		calendar.add(Calendar.MONTH, -1);
+		Date startDate = calendar.getTime();
+		calendar.add(Calendar.YEAR, 100);
+		Date preferredEndDate = calendar.getTime();
+
+		Date endDate = licensor.determineEndDate(preferredEndDate);
+
+		return new CertificateInfo(startDate, endDate, getSubject(), getIssuer());
+	}
+
+	public static CertificateInfo getMaxEndDateCertificateInfo(Licensor licensor) {
+		Calendar calendar = Calendar.getInstance();
+		calendar.add(Calendar.MONTH, -1);
+		Date startDate = calendar.getTime();
+		Date endDate = licensor.determineEndDate();
+
+		return new CertificateInfo(startDate, endDate, getSubject(), getIssuer());
+	}
+
 	public static CertificateInfo getNotYetValidCertificateInfo() {
 		Calendar calendar = Calendar.getInstance();
 		calendar.add(Calendar.MONTH, 1);
@@ -59,12 +101,12 @@ public class TestUtils {
 	}
 
 	static Person getSubject() {
-		return new Person("John Doe", "US", "john@green-company.com",
+		return new Person("john", "John Doe", "US", "john@green-company.com",
 				"Green Company");
 	}
 
 	static Person getIssuer() {
-		return new Person("Nexus CA", "DE", "", "Green Delta");
+		return new Person("", "Nexus CA", "DE", "gd@greendelta.com", "GreenDelta GmbH");
 	}
 
 	public static ZipInputStream createTestLibrary(File file) throws IOException,

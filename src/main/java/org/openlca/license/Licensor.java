@@ -20,6 +20,7 @@ import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -134,7 +135,7 @@ public class Licensor {
 	 * The ZIP streams should be created with a 'try'-with-resources statement.
 	 * </p>
 	 *
-	 * @param input  the data library as a ZipIntutStream,
+	 * @param input  the data library as a ZipInputStream,
 	 * @param output the ZipOutputSteam on which the licensed data library is
 	 *               written,
 	 * @param pass   the user password that is used to encrypt the data library
@@ -143,6 +144,8 @@ public class Licensor {
 	 */
 	public void license(ZipInputStream input, ZipOutputStream output, char[] pass,
 			CertificateInfo info) throws IOException {
+		checkValidity(pass, info);
+
 		keyPair = generateKeyPair();
 
 		String certificate = createCertificate(info);
@@ -162,6 +165,16 @@ public class Licensor {
 
 		License license = new License(certificate, signatures, authority);
 		writeLicenseToJson(license, output);
+	}
+
+	private void checkValidity(char[] pass, CertificateInfo info) {
+		if (info.notAfter().before(info.notBefore())
+				|| info.notAfter().after(certAuthority.getNotAfter()))
+			throw new RuntimeException("Error while licensing the library. The start "
+					+ "and end date provided are not valid.");
+		if (pass == null || pass.length == 0)
+			throw new RuntimeException("Error while licensing the library. The "
+					+ "password provided is null or empty.");
 	}
 
 	/**
@@ -227,8 +240,8 @@ public class Licensor {
 	 */
 	private String getAuthority() {
 		try {
-			return CertificateGenerator.toBase64(getAuthorityCertificate());
-		} catch (CertificateException e) {
+			return CertificateGenerator.toBase64(getCertificateAuthority());
+		} catch (CertificateEncodingException e) {
 			throw new RuntimeException(e);
 		}
 	}
@@ -236,7 +249,7 @@ public class Licensor {
 	/**
 	 * Returns the Certificate Authority certificate as {@link X509Certificate}.
 	 */
-	public X509Certificate getAuthorityCertificate() {
+	public X509Certificate getCertificateAuthority() {
 		try {
 			return new JcaX509CertificateConverter()
 					.setProvider(BC)
@@ -245,7 +258,26 @@ public class Licensor {
 			throw new RuntimeException(e);
 		}
 	}
+	
+	/**
+	 * Returns either the preferred end date if it is not null and earlier than
+	 * the CA end date, otherwise it returns the CA end date.
+	 */
+	public Date determineEndDate(Date preferredEndDate) {
+		Date caEndDate = getCertificateAuthority().getNotAfter();
+		if (preferredEndDate == null)
+			return caEndDate;
 
+		return preferredEndDate.after(caEndDate) ? caEndDate : preferredEndDate;
+	}
+
+	/**
+	 * Returns the certificate authority end date.
+	 */
+	public Date determineEndDate() {
+		return determineEndDate(null);
+	}
+	
 	/**
 	 * Creates a new certificate by calling the {@link CertificateGenerator}
 	 * instantiated with the certificate authority.

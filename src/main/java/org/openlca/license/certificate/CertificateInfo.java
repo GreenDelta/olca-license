@@ -67,7 +67,7 @@ public class CertificateInfo {
 					Person.of(holder.getIssuer()));
 		} catch (CertificateException e) {
 			throw new RuntimeException("Error while parsing the X.509 certificate "
-					+ "into a " + CertificateInfo.class + "object.", e);
+					+ "into a " + CertificateInfo.class + " object.", e);
 		}
 	}
 

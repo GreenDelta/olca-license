@@ -8,6 +8,10 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
 
+/**
+ * @param user the username or the email of the user.
+ * @param secret the salted password of the user.
+ */
 public class Session {
 
 	private final String user;

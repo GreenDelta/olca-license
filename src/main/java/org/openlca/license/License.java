@@ -16,6 +16,7 @@ import java.nio.file.Path;
 import java.security.PublicKey;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -33,6 +34,7 @@ import org.openlca.license.access.Session;
 import org.openlca.license.certificate.CertUtils;
 import org.openlca.license.certificate.CertificateInfo;
 import org.openlca.license.certificate.CertificateVerifier;
+import org.openlca.license.certificate.Person;
 import org.openlca.license.signature.SignatureVerifier;
 
 import com.google.gson.Gson;
@@ -149,7 +151,7 @@ public class License {
 	 * <li>the authenticity of the certificate,</li>
 	 * <li>the start and expiry date of the license,</li>
 	 * <li>the signatures of the library files,</li>
-	 * <li>the email address of the user,</li>
+	 * <li>the username or email address of the user,</li>
 	 * <li>the password of the user.</li>
 	 * </ol>
 	 *
@@ -158,7 +160,7 @@ public class License {
 	 * @param cipher
 	 *            a decryption cipher to test the password
 	 * @param user
-	 *            the email of the user
+	 *            the username or email address of the user
 	 */
 	public LicenseStatus status(File library, Cipher cipher, String user) throws IOException {
 		CertificateInfo info = getInfo();
@@ -181,7 +183,7 @@ public class License {
 		if (!signAgent.verify(library, blacklist))
 			return LicenseStatus.CORRUPTED;
 
-		if (!user.equals(info.subject().email()))
+		if (!checkSubject(user))
 			return LicenseStatus.WRONG_USER;
 
 		if (!checkEncryption(library, cipher)) {
@@ -191,6 +193,13 @@ public class License {
 		return LicenseStatus.VALID;
 	}
 
+	private boolean checkSubject(String user) {
+		if (user == null || user.trim().isEmpty())
+			return false;
+		Person subject = getInfo().subject();
+		return Arrays.asList(subject.userName(), subject.email()).contains(user);
+	}
+	
 	/**
 	 *
 	 * @param library
@@ -226,13 +235,13 @@ public class License {
 	}
 
 	public Session createSession(Credentials credentials) {
-		if (!credentials.user().equals(getInfo().subject().email()))
+		if (!checkSubject(credentials.user()))
 			return null;
 		char[] password = credentials.password();
 		byte[] salt = getCertPublicKey().getEncoded();
 		byte[] secret = Crypto.getSecret(password, salt);
 		String encoded = new String(Base64.encode(secret));
-		return new Session(getInfo().subject().email(), encoded);
+		return new Session(credentials.user(), encoded);
 	}
 
 	public Cipher getDecryptCipher(Credentials credentials) {
@@ -242,7 +251,7 @@ public class License {
 	}
 
 	public Cipher getDecryptCipher(Session session) {
-		if (!session.user().equals(getInfo().subject().email()))
+		if (!checkSubject(session.user()))
 			return null;
 		byte[] decoded = Base64.decode(session.secret());
 		return Crypto.getCipher(Cipher.DECRYPT_MODE, decoded);
