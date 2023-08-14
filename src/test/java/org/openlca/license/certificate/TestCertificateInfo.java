@@ -15,11 +15,12 @@ public class TestCertificateInfo {
 
 	@Test
 	public void testPersonOf() {
-		var rdn = "CN=John Doe,C=DE,E=john.doe@mail.com,O=Green Corp.";
+		var rdn = "UID=john.doe,CN=John Doe,C=DE,E=john.doe@mail.com,O=Green Corp.";
 		var x500Name = new X500Name(rdn);
 		var personFromX500Name = Person.of(x500Name);
 		var personFromString = Person.of(rdn);
 
+		assertEquals("john.doe", personFromX500Name.userName());
 		assertEquals("John Doe", personFromX500Name.commonName());
 		assertEquals("DE", personFromX500Name.country());
 		assertEquals("john.doe@mail.com", personFromX500Name.email());

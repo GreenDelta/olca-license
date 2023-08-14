@@ -27,10 +27,17 @@ user of the library and the `CertificateInfo` object holding the start and
 expiration date and the subject and issuer information:
 
 ```java
+var info = licensor.createCertificateInfo(notBefore, notAfter, subject);
 try (var output = new ZipOutputStream(new FileOutputStream(library))) {
     licensor.license(input, output, PASSWORD_LIB, info);
 }
 ```
+If the end date of the certificate is not determined, it is possible to omit it:
+
+```java
+var info = licensor.createCertificateInfo(notBefore, subject);
+```
+
 
 ## Check the information of an issued certificate
 

@@ -40,7 +40,7 @@ public class TestLicensor {
 
 	private File initLibrary(CertificateInfo info) throws IOException,
 			URISyntaxException {
-		var licensor = Licensor.getInstance(ca);
+			var licensor = Licensor.getInstance(ca);
 		return initLibrary(licensor, info, PASSWORD_LIB);
 	}
 
@@ -82,7 +82,7 @@ public class TestLicensor {
 
 	@Test
 	public void testCertificateInfo() throws IOException, URISyntaxException {
-		var info = getValidCertificateInfo();
+		var info = getValidCertificateInfo(Licensor.getInstance(ca));
 		var libraryFolder = initLibrary(info);
 		var license = License.of(libraryFolder).orElse(null);
 
@@ -93,7 +93,7 @@ public class TestLicensor {
 
 	@Test
 	public void testValidStatus() throws IOException, URISyntaxException {
-		var info = getValidCertificateInfo();
+		var info = getValidCertificateInfo(Licensor.getInstance(ca));
 		var libraryFolder = initLibrary(info);
 		var license = License.of(libraryFolder).orElse(null);
 		assertNotNull(license);
@@ -105,14 +105,14 @@ public class TestLicensor {
 	}
 
 	@Test
-	public void testNullPassword() {
-		var info = getValidCertificateInfo();
+	public void testNullPassword() throws IOException {
+		var info = getValidCertificateInfo(Licensor.getInstance(ca));
 		assertThrows(RuntimeException.class, () -> initLibrary(info, null));
 	}
 
 	@Test
-	public void testEmptyPassword() {
-		var info = getValidCertificateInfo();
+	public void testEmptyPassword() throws IOException {
+		var info = getValidCertificateInfo(Licensor.getInstance(ca));
 		assertThrows(RuntimeException.class, () -> initLibrary(info, "".toCharArray()));
 	}
 
@@ -131,7 +131,7 @@ public class TestLicensor {
 
 	@Test
 	public void testSignatureStatus() throws IOException, URISyntaxException {
-		var info = getValidCertificateInfo();
+		var info = getValidCertificateInfo(Licensor.getInstance(ca));
 		var libraryFolder = initLibrary(info);
 
 		// Adding a file to make the signature check fail
@@ -207,7 +207,7 @@ public class TestLicensor {
 
 	@Test
 	public void testStatusWrongEmail() throws IOException, URISyntaxException {
-		var info = getValidCertificateInfo();
+		var info = getValidCertificateInfo(Licensor.getInstance(ca));
 		var libraryFolder = initLibrary(info);
 		var license = License.of(libraryFolder).orElse(null);
 		assertNotNull(license);
@@ -220,7 +220,7 @@ public class TestLicensor {
 
 	@Test
 	public void testStatusUserName() throws IOException, URISyntaxException {
-		var info = getValidCertificateInfo();
+		var info = getValidCertificateInfo(Licensor.getInstance(ca));
 		var libraryFolder = initLibrary(info);
 		var license = License.of(libraryFolder).orElse(null);
 		assertNotNull(license);
@@ -233,7 +233,7 @@ public class TestLicensor {
 
 	@Test
 	public void testStatusWrongPassword() throws IOException, URISyntaxException {
-		var info = getValidCertificateInfo();
+		var info = getValidCertificateInfo(Licensor.getInstance(ca));
 		var libraryFolder = initLibrary(info);
 		var license = License.of(libraryFolder).orElse(null);
 		assertNotNull(license);
@@ -248,7 +248,7 @@ public class TestLicensor {
 	@Test
 	public void testGetCipherFromCredentials() throws IOException,
 			URISyntaxException, BadPaddingException {
-		var info = getValidCertificateInfo();
+		var info = getValidCertificateInfo(Licensor.getInstance(ca));
 		var libraryFolder = initLibrary(info);
 		var license = License.of(libraryFolder).orElse(null);
 		assertNotNull(license);
@@ -273,7 +273,7 @@ public class TestLicensor {
 	@Test
 	public void testGetCipherFromSecret() throws IOException,
 			URISyntaxException, BadPaddingException {
-		var info = getValidCertificateInfo();
+		var info = getValidCertificateInfo(Licensor.getInstance(ca));
 		var libraryFolder = initLibrary(info);
 		var license = License.of(libraryFolder).orElse(null);
 		assertNotNull(license);
@@ -300,7 +300,7 @@ public class TestLicensor {
 
 	@Test
 	public void testStatusFromSession() throws IOException, URISyntaxException {
-		var info = getValidCertificateInfo();
+		var info = getValidCertificateInfo(Licensor.getInstance(ca));
 		var libraryFolder = initLibrary(info);
 
 		var license = License.of(libraryFolder).orElse(null);
