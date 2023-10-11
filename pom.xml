@@ -67,10 +67,8 @@
 	</developers>
 
 	<scm>
-		<connection>scm:git:git://github.com/GreenDelta/olca-license.git
-		</connection>
-		<developerConnection>scm:git:git://github.com/GreenDelta/olca-license.git
-		</developerConnection>
+		<connection>scm:git:git://github.com/GreenDelta/olca-license.git</connection>
+		<developerConnection>scm:git:git://github.com/GreenDelta/olca-license.git</developerConnection>
 		<url>https://github.com/GreenDelta/olca-license</url>
 	</scm>
 
@@ -86,8 +84,7 @@
 		</snapshotRepository>
 		<repository>
 			<id>ossrh</id>
-			<url>https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/
-			</url>
+			<url>https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/</url>
 		</repository>
 	</distributionManagement>
 
@@ -165,6 +162,9 @@
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-javadoc-plugin</artifactId>
 						<version>3.5.0</version>
+						<configuration>
+							<additionalOptions>-Xdoclint:none</additionalOptions>
+						</configuration>
 						<executions>
 							<execution>
 								<id>attach-javadocs</id>
