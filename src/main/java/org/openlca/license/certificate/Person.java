@@ -2,8 +2,8 @@ package org.openlca.license.certificate;
 
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.x500.X500Name;
+import org.bouncycastle.asn1.x500.X500NameBuilder;
 import org.bouncycastle.asn1.x500.style.BCStyle;
-import org.bouncycastle.asn1.x500.style.IETFUtils;
 
 import java.util.stream.Stream;
 
@@ -11,15 +11,15 @@ import java.util.stream.Stream;
  * <p>
  * The Person records data specific to the X.500 directory service.
  * </p>
- *
+ * <p>
  * For example the following string representation of an X.500 entry:
  * <p><code>uid=lee.rosanna, cn=Rosanna Lee, e=lee.rosanna@sun.org, o=Sun,
  * c=us</code>
  * <code></p>
  * can be created with:
  * <p><code>
- *   var person = new Person("lee.rosanna", "Rosanna Lee", "US,
- *   "lee.rosanna@sun.org", "Sun);
+ * var person = new Person("lee.rosanna", "Rosanna Lee", "US,
+ * "lee.rosanna@sun.org", "Sun);
  * </code></p>
  */
 public record Person(
@@ -58,18 +58,23 @@ public record Person(
 	public static String get(X500Name name, ASN1ObjectIdentifier identifier) {
 		var rdn = name.getRDNs(identifier);
 		if (rdn.length > 0) {
-			return IETFUtils.valueToString(rdn[0].getFirst().getValue());
+			return rdn[0].getFirst().getValue().toString();
 		} else
 			return "";
 	}
 
-	public String asRDNString() {
-		return String.format("UID=%s,CN=%s,C=%s,E=%s,O=%s",
-				userName, commonName, country, email, organisation);
+	public X500Name asX500Name() {
+		return new X500NameBuilder(BCStyle.INSTANCE)
+				.addRDN(BCStyle.UID, userName)
+				.addRDN(BCStyle.CN, commonName)
+				.addRDN(BCStyle.C, country)
+				.addRDN(BCStyle.E, email)
+				.addRDN(BCStyle.O, organisation)
+				.build();
 	}
 
-	public X500Name asX500Name() {
-		return new X500Name(asRDNString());
+	public String asRDNString() {
+		return asX500Name().toString();
 	}
 
 }
