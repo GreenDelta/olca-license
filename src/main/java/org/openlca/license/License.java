@@ -179,7 +179,8 @@ public record License(String certificate, Map<String, String> signatures,
 			encrypted = walk
 					.map(Path::getFileName)
 					.map(Path::toString)
-					.map(n -> n.substring(0, n.length() - ".enc".length()))
+					.filter(n -> n.endsWith(".enc"))
+					.map(n -> n.substring(0, n.length() - 4))
 					.filter(baseName -> INDICES.contains(baseName))
 					.findFirst()
 					.orElse(null);
