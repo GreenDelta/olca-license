@@ -7,8 +7,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<maven.compiler.target>21</maven.compiler.target>
-		<maven.compiler.source>21</maven.compiler.source>
+		<maven.compiler.release>25</maven.compiler.release>
 	</properties>
 
 	<groupId>org.openlca</groupId>
@@ -77,17 +76,6 @@
 		<url>https://github.com/GreenDelta/olca-license/issues</url>
 	</issueManagement>
 
-	<distributionManagement>
-		<snapshotRepository>
-			<id>ossrh</id>
-			<url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
-		</snapshotRepository>
-		<repository>
-			<id>ossrh</id>
-			<url>https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/</url>
-		</repository>
-	</distributionManagement>
-
 	<dependencies>
 
 		<dependency>
@@ -99,19 +87,19 @@
 		<dependency>
 			<groupId>com.google.code.gson</groupId>
 			<artifactId>gson</artifactId>
-			<version>2.14.0</version>
+			<version>2.15.0</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-api</artifactId>
-			<version>2.0.18</version>
+			<version>2.0.20</version>
 		</dependency>
 
 		<dependency>
 			<groupId>ch.qos.logback</groupId>
 			<artifactId>logback-classic</artifactId>
-			<version>1.5.37</version>
+			<version>1.6.6</version>
 			<scope>test</scope>
 		</dependency>
 
@@ -134,7 +122,7 @@
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-gpg-plugin</artifactId>
-						<version>3.1.0</version>
+						<version>3.2.8</version>
 						<executions>
 							<execution>
 								<id>sign-artifacts</id>
@@ -148,7 +136,7 @@
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-source-plugin</artifactId>
-						<version>3.3.0</version>
+						<version>3.4.0</version>
 						<executions>
 							<execution>
 								<id>attach-sources</id>
@@ -161,7 +149,7 @@
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-javadoc-plugin</artifactId>
-						<version>3.5.0</version>
+						<version>3.12.0</version>
 						<configuration>
 							<additionalOptions>-Xdoclint:none</additionalOptions>
 						</configuration>
@@ -175,14 +163,12 @@
 						</executions>
 					</plugin>
 					<plugin>
-						<groupId>org.sonatype.plugins</groupId>
-						<artifactId>nexus-staging-maven-plugin</artifactId>
-						<version>1.6.13</version>
+						<groupId>org.sonatype.central</groupId>
+						<artifactId>central-publishing-maven-plugin</artifactId>
+						<version>0.12.0</version>
 						<extensions>true</extensions>
 						<configuration>
-							<serverId>ossrh</serverId>
-							<nexusUrl>https://s01.oss.sonatype.org/</nexusUrl>
-							<autoReleaseAfterClose>true</autoReleaseAfterClose>
+							<publishingServerId>central</publishingServerId>
 						</configuration>
 					</plugin>
 				</plugins>

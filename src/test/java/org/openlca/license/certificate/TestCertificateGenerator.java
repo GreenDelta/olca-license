@@ -49,6 +49,22 @@ public class TestCertificateGenerator {
 		var subjectName = certificate.getSubjectX500Principal().getName();
 		var subjectPerson = Person.of(subjectName);
 		assertEquals(info.subject(), subjectPerson);
+
+		assertTrue(certificate.getSerialNumber().signum() > 0);
+	}
+
+	/// RFC 5280 requires positive serial numbers with at most 20 octets. Before,
+	/// the serial number was created from a random `long`, which was negative
+	/// in about half of the cases.
+	@Test
+	public void testSerialNumbersArePositive() {
+		for (int i = 0; i < 10_000; i++) {
+			var serial = CertificateGenerator.newSerialNumber();
+			assertTrue("serial number must be positive: " + serial,
+					serial.signum() > 0);
+			assertTrue("serial number must not exceed 20 octets: " + serial,
+					serial.toByteArray().length <= 20);
+		}
 	}
 
 	private X509CertificateHolder getTestCertAuth()

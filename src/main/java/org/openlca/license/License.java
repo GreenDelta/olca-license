@@ -1,8 +1,6 @@
 package org.openlca.license;
 
 import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
-import com.google.gson.stream.JsonReader;
 import org.bouncycastle.util.encoders.Base64;
 import org.openlca.license.access.Credentials;
 import org.openlca.license.access.LicenseStatus;
@@ -16,11 +14,9 @@ import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.FileReader;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.PublicKey;
@@ -30,37 +26,32 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 
 import static org.openlca.license.Licensor.INDICES;
 import static org.openlca.license.Licensor.JSON;
 
-/**
- * <p>
- * {@link License} is a record used to gather the information that certified a
- * data library.
- * </p>
- *
- * @param certificate X.509 certificate of the data library encoded in Base64.
- * @param signatures  Mapping of the file names to their digital signature
- *                    encoded in Base64.
- * @param authority   X.509 certificate of the certificate authority that
- *                    delivered the data library certificate.
- */
+/// [License] is a record used to gather the information that certified a
+/// data library.
+///
+/// @param certificate X.509 certificate of the data library encoded in Base64.
+/// @param signatures  Mapping of the file names to their digital signature
+///                    encoded in Base64.
+/// @param authority   X.509 certificate of the certificate authority that
+///                    delivered the data library certificate.
 public record License(String certificate, Map<String, String> signatures,
-											String authority) {
+		String authority) {
 
 	public static Optional<License> of(File library) {
 		var json = new File(library, JSON);
 		if (!json.exists())
 			return Optional.empty();
 
-		try {
-			var reader = new JsonReader(new FileReader(json));
-			var gson = new Gson();
-			var mapType = new TypeToken<License>() {}.getType();
-			return Optional.of(gson.fromJson(reader, mapType));
-		} catch (FileNotFoundException e) {
+		// the reader must be closed, otherwise the file could stay locked (on
+		// Windows) and the library folder could not be deleted
+		try (var reader = Files.newBufferedReader(
+				json.toPath(), StandardCharsets.UTF_8)) {
+			return Optional.of(new Gson().fromJson(reader, License.class));
+		} catch (IOException e) {
 			throw new RuntimeException("Error while reading the license file.", e);
 		}
 	}
@@ -91,43 +82,35 @@ public record License(String certificate, Map<String, String> signatures,
 		return CertUtils.getX509Certificate(bis);
 	}
 
-	/**
-	 * Check the status of the {@link License} by checking the {@link Session}.
-	 *
-	 * @see License#status(File, Cipher, String)
-	 */
+	/// Check the status of the [License] by checking the [Session].
+	///
+	/// @see #status(File, Cipher, String)
 	public LicenseStatus status(File library, Session session) throws
 			IOException {
 		var cipher = getDecryptCipher(session);
 		return status(library, cipher, session.user());
 	}
 
-	/**
-	 * Check the status of the {@link License} by checking the
-	 * {@link Credentials}.
-	 *
-	 * @see License#status(File, Cipher, String)
-	 */
+	/// Check the status of the [License] by checking the [Credentials].
+	///
+	/// @see #status(File, Cipher, String)
 	public LicenseStatus status(File library, Credentials credentials) throws
 			IOException {
 		var cipher = getDecryptCipher(credentials);
 		return status(library, cipher, credentials.user());
 	}
 
-	/**
-	 * <p>Check the status of a {@link License} by sequentially testing:</p>
-	 * <ol>
-	 *   <li>the authenticity of the certificate,</li>
-	 *   <li>the start and expiry date of the license,</li>
-	 *   <li>the signatures of the library files,</li>
-	 *   <li>the username or email address of the user,</li>
-	 *   <li>the password of the user.</li>
-	 * </ol>
-	 *
-	 * @param library the folder of the library
-	 * @param cipher a decryption cipher to test the password
-	 * @param user the username or email address of the user
-	 */
+	/// Check the status of a [License] by sequentially testing:
+	///
+	/// 1. the authenticity of the certificate,
+	/// 2. the start and expiry date of the license,
+	/// 3. the signatures of the library files,
+	/// 4. the username or email address of the user,
+	/// 5. the password of the user.
+	///
+	/// @param library the folder of the library
+	/// @param cipher  a decryption cipher to test the password
+	/// @param user    the username or email address of the user
 	public LicenseStatus status(File library, Cipher cipher, String user) throws
 			IOException {
 		var info = getInfo();
@@ -160,28 +143,35 @@ public record License(String certificate, Map<String, String> signatures,
 		return LicenseStatus.VALID;
 	}
 
+	/// Returns `true` if the given user matches the username or the email
+	/// address of the certificate subject. Note that the username and email
+	/// address can be the same, so we cannot put them into a `Set.of(..)`.
 	private boolean checkSubject(String user) {
 		if (user == null || user.isBlank())
 			return false;
 		var subject = getInfo().subject();
-		return Set.of(subject.userName(), subject.email()).contains(user);
+		return user.equals(subject.userName()) || user.equals(subject.email());
 	}
 
-	/**
-	 *
-	 * @param library the library folder
-	 * @param cipher a decryption cipher.
-	 */
+	/// Tests if the given cipher can decrypt an encrypted index of the library.
+	/// The decrypted data are discarded, so that they are never written to
+	/// disk.
+	///
+	/// @param library the library folder
+	/// @param cipher  a decryption cipher.
 	private boolean checkEncryption(File library, Cipher cipher) throws
 			IOException {
-		String encrypted;
+		Path encrypted;
 		try (var walk = Files.walk(library.toPath())) {
 			encrypted = walk
-					.map(Path::getFileName)
-					.map(Path::toString)
-					.filter(n -> n.endsWith(".enc"))
-					.map(n -> n.substring(0, n.length() - 4))
-					.filter(baseName -> INDICES.contains(baseName))
+					.filter(Files::isRegularFile)
+					.filter(path -> {
+						var name = path.getFileName().toString();
+						if (!name.endsWith(".enc"))
+							return false;
+						var baseName = name.substring(0, name.length() - 4);
+						return INDICES.contains(baseName);
+					})
 					.findFirst()
 					.orElse(null);
 		}
@@ -189,16 +179,12 @@ public record License(String certificate, Map<String, String> signatures,
 		if (encrypted == null)
 			return true;
 
-		var output = File.createTempFile("out", null);
-		try (var in = new FileInputStream(new File(library, encrypted + ".enc"));
-				 var out = new FileOutputStream(output)) {
-			try {
-				Crypto.doCrypto(cipher, in, out);
-			} catch (BadPaddingException e) {
-				return false;
-			}
+		try (var in = Files.newInputStream(encrypted)) {
+			Crypto.doCrypto(cipher, in, OutputStream.nullOutputStream());
+			return true;
+		} catch (BadPaddingException e) {
+			return false;
 		}
-		return true;
 	}
 
 	public Session createSession(Credentials credentials) {

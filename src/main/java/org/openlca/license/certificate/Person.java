@@ -7,21 +7,23 @@ import org.bouncycastle.asn1.x500.style.BCStyle;
 
 import java.util.stream.Stream;
 
-/**
- * <p>
- * The Person records data specific to the X.500 directory service.
- * </p>
- * <p>
- * For example the following string representation of an X.500 entry:
- * <p><code>uid=lee.rosanna, cn=Rosanna Lee, e=lee.rosanna@sun.org, o=Sun,
- * c=us</code>
- * <code></p>
- * can be created with:
- * <p><code>
- * var person = new Person("lee.rosanna", "Rosanna Lee", "US,
- * "lee.rosanna@sun.org", "Sun);
- * </code></p>
- */
+/// The Person records data specific to the X.500 directory service.
+///
+/// For example the following string representation of an X.500 entry:
+///
+/// ```
+/// UID=lee.rosanna,CN=Rosanna Lee,C=US,E=lee.rosanna@sun.org,O=Sun
+/// ```
+///
+/// can be created with:
+///
+/// ```
+/// var person = new Person(
+///     "lee.rosanna", "Rosanna Lee", "US", "lee.rosanna@sun.org", "Sun");
+/// ```
+///
+/// Fields that are `null` or empty are not added to the X.500 name. When
+/// reading a name, missing fields are returned as empty strings.
 public record Person(
 		String userName,
 		String commonName,
@@ -47,10 +49,8 @@ public record Person(
 		);
 	}
 
-	/**
-	 * @param name a string representation of the X.500 distinguished name using
-	 *             the format defined in RFC 2253.
-	 */
+	/// @param name a string representation of the X.500 distinguished name
+	///             using the format defined in RFC 2253.
 	public static Person of(String name) {
 		return Person.of(new X500Name(name));
 	}
@@ -64,13 +64,23 @@ public record Person(
 	}
 
 	public X500Name asX500Name() {
-		return new X500NameBuilder(BCStyle.INSTANCE)
-				.addRDN(BCStyle.UID, userName)
-				.addRDN(BCStyle.CN, commonName)
-				.addRDN(BCStyle.C, country)
-				.addRDN(BCStyle.E, email)
-				.addRDN(BCStyle.O, organisation)
-				.build();
+		var builder = new X500NameBuilder(BCStyle.INSTANCE);
+		add(builder, BCStyle.UID, userName);
+		add(builder, BCStyle.CN, commonName);
+		add(builder, BCStyle.C, country);
+		add(builder, BCStyle.E, email);
+		add(builder, BCStyle.O, organisation);
+		return builder.build();
+	}
+
+	/// Adds the value to the builder if it is not `null` or empty. The
+	/// [X500NameBuilder] fails with a `NullPointerException` for `null` values
+	/// and empty values are not allowed for most attributes (RFC 5280).
+	private static void add(
+			X500NameBuilder builder, ASN1ObjectIdentifier oid, String value) {
+		if (value == null || value.isEmpty())
+			return;
+		builder.addRDN(oid, value);
 	}
 
 	public String asRDNString() {

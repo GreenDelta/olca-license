@@ -29,38 +29,34 @@ import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 
-/**
- * <p>
- *   The {@link CertificateGenerator} class is used to generate X.509
- *   certificates. To create an instance of this class, one must provide a
- *   certificate authority certificate and key pair. To create a certificate, it
- *   is necessary to provide a newly generated key pair and certificate
- *   information under a {@link CertificateInfo} object.
- * </p>
- * <p></p>
- * <p>
- *   Create a certificate generator instance:
- *   <code>
- *     <p>var keyPairCA = new KeyPair(publicKeyCA, privateKeyCA);</p>
- *     <p>var generator = new CertificateGenerator(certAuthority, keyPairCA);</p>
- *   </code>
- * </p>
- * <p>
- *   Generate a new certificate:
- *   <code>
- *     <p>var keyPairGenerator = KeyPairGenerator.getInstance(KEY_ALGORITHM, BC);</p>
- * 		 <p>keyPairGenerator.initialize(2048);</p>
- * 		 <p>var keyPair =  keyPairGenerator.generateKeyPair();</p>
- *     <p>var x509certificate = generator.createCertificate(info, keyPair);</p>
- *   </code></p>
- * </p>
- **/
+/// The [CertificateGenerator] class is used to generate X.509 certificates.
+/// To create an instance of this class, one must provide a certificate
+/// authority certificate and key pair. To create a certificate, it is
+/// necessary to provide a newly generated key pair and certificate
+/// information under a [CertificateInfo] object.
+///
+/// Create a certificate generator instance:
+///
+/// ```
+/// var keyPairCA = new KeyPair(publicKeyCA, privateKeyCA);
+/// var generator = new CertificateGenerator(certAuthority, keyPairCA);
+/// ```
+///
+/// Generate a new certificate:
+///
+/// ```
+/// var keyPairGenerator = KeyPairGenerator.getInstance(KEY_ALGORITHM, BC);
+/// keyPairGenerator.initialize(2048);
+/// var keyPair =  keyPairGenerator.generateKeyPair();
+/// var x509certificate = generator.createCertificate(info, keyPair);
+/// ```
 public class CertificateGenerator {
 
 	private static final String BC = "BC";
 	private static final String SIGNATURE_ALGORITHM = "SHA256withRSA";
 	private static final String BEGIN = "-----BEGIN CERTIFICATE-----\n";
 	private static final String END = "\n-----END CERTIFICATE-----";
+	private static final SecureRandom random = new SecureRandom();
 	private final X509CertificateHolder certAuth;
 	private final KeyPair keyPairCA;
 
@@ -75,11 +71,9 @@ public class CertificateGenerator {
 		this.keyPairCA = keyPair;
 	}
 
-	/**
-	 * Generate a certificate by creating a CSR (Certificate Signing Request) with
-	 * the license information and the public key provided. The CSR is then signed
-	 * by the certificate authority.
-	 */
+	/// Generate a certificate by creating a CSR (Certificate Signing Request)
+	/// with the license information and the public key provided. The CSR is
+	/// then signed by the certificate authority.
 	public X509Certificate createCertificate(CertificateInfo info,
 			KeyPair keyPair) {
 		try {
@@ -105,12 +99,11 @@ public class CertificateGenerator {
 		}
 	}
 
-	/**
-	 * Adding extensions to the CSR:
-	 *  - type of certificate,
-	 *  - certificate authority information,
-	 *  - certificate usage.
-	 */
+	/// Adding extensions to the CSR:
+	///
+	/// - type of certificate,
+	/// - certificate authority information,
+	/// - certificate usage.
 	private void addExtensions(X509v3CertificateBuilder certBuilder,
 			PKCS10CertificationRequest csr) {
 		try {
@@ -141,10 +134,8 @@ public class CertificateGenerator {
 		}
 	}
 
-	/**
-	 * Lazily creates a CSR content signer built with the certificate authority
-	 * private key.
-	 */
+	/// Lazily creates a CSR content signer built with the certificate authority
+	/// private key.
 	private ContentSigner getCsrContentSigner() {
 		if (csrContentSigner == null) {
 			var csrBuilder = new JcaContentSignerBuilder(SIGNATURE_ALGORITHM);
@@ -163,15 +154,23 @@ public class CertificateGenerator {
 
 	private X509v3CertificateBuilder getCertBuilder(CertificateInfo info,
 			PKCS10CertificationRequest csr) {
-		var randomLong = new SecureRandom().nextLong();
-		var issuedCertSerialNum = new BigInteger(Long.toString(randomLong));
-
 		// Use the signed KeyPair and CSR to generate an issued Certificate
 		// Here serial number is randomly generated. In general, CAs use
 		// a sequence to generate Serial number and avoid collisions
 		return new X509v3CertificateBuilder(
-				certAuth.getSubject(), issuedCertSerialNum, info.notBefore(),
+				certAuth.getSubject(), newSerialNumber(), info.notBefore(),
 				info.notAfter(), csr.getSubject(), csr.getSubjectPublicKeyInfo());
+	}
+
+	/// Returns a random, positive serial number with 64 bits. RFC 5280 requires
+	/// that serial numbers are positive integers with at most 20 octets. A
+	/// random `long` would be negative in half of the cases.
+	static BigInteger newSerialNumber() {
+		BigInteger serial;
+		do {
+			serial = new BigInteger(64, random);
+		} while (serial.signum() == 0);
+		return serial;
 	}
 
 	private PKCS10CertificationRequest createCSR(CertificateInfo info, PublicKey
@@ -193,10 +192,8 @@ public class CertificateGenerator {
 		return builder.build(csrContentSigner);
 	}
 
-	/**
-	 * Convert the certificate to Base64, the industry standard for SSL
-	 * certificate content.
-	 */
+	/// Convert the certificate to Base64, the industry standard for SSL
+	/// certificate content.
 	public static String toBase64(X509Certificate certificate)
 			throws CertificateEncodingException {
 		var bytes = certificate.getEncoded();

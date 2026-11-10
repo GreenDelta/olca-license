@@ -18,6 +18,7 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Calendar;
 import java.util.Objects;
+import java.util.TimeZone;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
@@ -26,8 +27,12 @@ public class TestUtils {
 
 	public static final int BUFFER_SIZE = 8_192;
 
+	/// Returns the certificate information of the test certificate
+	/// `certificate/test.crt`. The dates of this certificate were created in
+	/// the time zone `Europe/Berlin`, so we need to use this time zone here,
+	/// otherwise the test would fail in other time zones (e.g. on a CI server).
 	public static CertificateInfo getExpiredCertificateInfo() {
-		var calendar = Calendar.getInstance();
+		var calendar = Calendar.getInstance(TimeZone.getTimeZone("Europe/Berlin"));
 		calendar.set(2021, Calendar.JULY, 20, 21, 37, 0);
 		var startDate = calendar.getTime();
 		calendar.add(Calendar.YEAR, 1);

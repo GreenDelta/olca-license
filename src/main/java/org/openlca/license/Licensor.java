@@ -18,6 +18,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
@@ -36,24 +37,18 @@ import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
 
-/**
- * <p>
- * The Licensor class is used to generate the license elements of a
- * data library. A licensor is constructed by calling the static
- * method {@code getInstance} with a certificate authority as input.
- * </p>
- * <p>
- * The licensing of a data library consists in three operations:
- *   <ol>
- *     <li>creation of a X.509 certificate signed by the issuer certificate
- *     authority with the information of the owner,</li>
- *     <li>symmetric encryption of the data indices with a key generated with
- *     the user password and certificate public key as salt,</li>
- *     <li>signature of the data library with the above-mentioned certificate
- *     private key.</li>
- *   </ol>
- * </p>
- */
+/// The Licensor class is used to generate the license elements of a data
+/// library. A licensor is constructed by calling the static method
+/// [#getInstance(File)] with a certificate authority as input.
+///
+/// The licensing of a data library consists in three operations:
+///
+/// 1. creation of a X.509 certificate signed by the issuer certificate
+///    authority with the information of the owner,
+/// 2. symmetric encryption of the data indices with a key generated with the
+///    user password and certificate public key as salt,
+/// 3. signature of the data library with the above-mentioned certificate
+///    private key.
 public class Licensor {
 
 	private static final String BC = "BC";
@@ -81,24 +76,17 @@ public class Licensor {
 		privateKeyCA = privateKey;
 	}
 
-	/**
-	 * <p>
-	 * Construct a new instance of {@link Licensor} with a certificate authority
-	 * as an input.
-	 * </p>
-	 * <p>
-	 * The industrial standard for a CA file structure is as follow:
-	 *   <ul>
-	 *     <li>
-	 *       private
-	 *       <ul>
-	 *         <li>[folder libName].key</li>
-	 *       </ul>
-	 *     </li>
-	 *     <li>[folder libName].crt</li>
-	 *   </ul>
-	 * </p>
-	 */
+	/// Construct a new instance of [Licensor] with a certificate authority as
+	/// an input.
+	///
+	/// The industrial standard for a CA file structure is as follow:
+	///
+	/// ```
+	/// [folder name]
+	///   ├── private
+	///   │   └── [folder name].key
+	///   └── [folder name].crt
+	/// ```
 	public static Licensor getInstance(File ca) throws
 			IOException {
 		var certificateName = ca.getName() + ".crt";
@@ -119,22 +107,18 @@ public class Licensor {
 		return new Licensor(certificate, publicKey, privateKey);
 	}
 
-	/**
-	 * <p>
-	 * Creates a license framework (certificate, signatures and encryption) from
-	 * a data library.
-	 * </p>
-	 * <p>
-	 * The ZIP streams should be created with a 'try'-with-resources statement.
-	 * </p>
-	 *
-	 * @param input  the data library as a ZipInputStream,
-	 * @param output the ZipOutputSteam on which the licensed data library is
-	 *               written,
-	 * @param pass   the user password that is used to encrypt the data library
-	 *               indices,
-	 * @param info   the information necessary to the creation of the certificate.
-	 */
+	/// Creates a license framework (certificate, signatures and encryption) from
+	/// a data library.
+	///
+	/// The ZIP streams should be created with a `try`-with-resources statement.
+	///
+	/// @param input  the data library as a ZipInputStream,
+	/// @param output the ZipOutputSteam on which the licensed data library is
+	///               written,
+	/// @param pass   the user password that is used to encrypt the data library
+	///               indices,
+	/// @param info   the information necessary to the creation of the
+	///               certificate.
 	public void license(ZipInputStream input, ZipOutputStream output, char[] pass,
 			CertificateInfo info) throws IOException {
 		checkValidity(pass, info);
@@ -160,14 +144,13 @@ public class Licensor {
 		writeLicenseToJson(license, output);
 	}
 
-	/**
-	 * Create a {@link CertificateInfo} instance with the subject of the
-	 * certificate authority as issuer.
-	 * @param notBefore the starting date,
-	 * @param notAfter the end date (this date is checked against the end date of
-	 *                the certificate authority),
-	 * @param subject the owner of the certificate.
-	 */
+	/// Create a [CertificateInfo] instance with the subject of the certificate
+	/// authority as issuer.
+	///
+	/// @param notBefore the starting date,
+	/// @param notAfter  the end date (this date is checked against the end date
+	///                  of the certificate authority),
+	/// @param subject   the owner of the certificate.
 	public CertificateInfo createCertificateInfo(Date notBefore, Date notAfter,
 			Person subject) {
 		var issuer = Person.of(certAuthority.getSubject());
@@ -175,13 +158,12 @@ public class Licensor {
 		return new CertificateInfo(notBefore, endDate, subject, issuer);
 	}
 
-	/**
-	 * Create a {@link CertificateInfo} instance with the subject of the
-	 * certificate authority as issuer. The endDate is set as the end date of the
-	 * certificate authority.
-	 * @param notBefore the starting date,
-	 * @param subject the owner of the certificate.
-	 */
+	/// Create a [CertificateInfo] instance with the subject of the certificate
+	/// authority as issuer. The end date is set as the end date of the
+	/// certificate authority.
+	///
+	/// @param notBefore the starting date,
+	/// @param subject   the owner of the certificate.
 	public CertificateInfo createCertificateInfo(Date notBefore, Person subject) {
 		return createCertificateInfo(notBefore, null, subject);
 	}
@@ -196,15 +178,23 @@ public class Licensor {
 					+ "password provided is null or empty.");
 	}
 
-	/**
-	 * Encrypts the designated files, signs and writes to the ZIP output the
-	 * designated ZIP entry.
-	 */
+	/// Encrypts the designated files, signs and writes to the ZIP output the
+	/// designated ZIP entry. Directory entries are copied without a signature.
 	private void processEntry(ZipInputStream input, ZipOutputStream output,
 			ZipEntry entry, char[] pass) throws IOException {
 		var name = entry.getName();
-		var baseName = name.substring(0, name.length() - ".bin".length());
-		if (INDICES.contains(baseName)) {
+		if (entry.isDirectory()) {
+			output.putNextEntry(entry);
+			return;
+		}
+
+		// check the extension before calling `substring`; names can be shorter
+		// than the extension and other files must not be treated as indices
+		var baseName = name.endsWith(".bin")
+				? name.substring(0, name.length() - ".bin".length())
+				: null;
+
+		if (baseName != null && INDICES.contains(baseName)) {
 			// encrypting the index file
 			var bos = new ByteArrayOutputStream();
 			try {
@@ -226,15 +216,14 @@ public class Licensor {
 		}
 	}
 
-	/**
-	 * Writes the {@link License} object to a JSON file saved into the library
-	 * folder.
-	 */
+	/// Writes the [License] object to a JSON file saved into the library
+	/// folder.
 	private void writeLicenseToJson(License license, ZipOutputStream output)
 			throws IOException {
 		var gson = new GsonBuilder().setPrettyPrinting().create();
 		var json = gson.toJson(license);
-		var jsonInput = new ByteArrayInputStream(json.getBytes());
+		var jsonInput = new ByteArrayInputStream(
+				json.getBytes(StandardCharsets.UTF_8));
 
 		var licenseEntry = new ZipEntry(JSON);
 		output.putNextEntry(licenseEntry);
@@ -254,9 +243,7 @@ public class Licensor {
 		}
 	}
 
-	/**
-	 * Returns the Certificate Authority certificate encoded in Base64.
-	 */
+	/// Returns the Certificate Authority certificate encoded in Base64.
 	private String getAuthority() {
 		try {
 			return CertificateGenerator.toBase64(getCertificateAuthority());
@@ -265,9 +252,7 @@ public class Licensor {
 		}
 	}
 
-	/**
-	 * Returns the Certificate Authority certificate as {@link X509Certificate}.
-	 */
+	/// Returns the Certificate Authority certificate as [X509Certificate].
 	public X509Certificate getCertificateAuthority() {
 		try {
 			return new JcaX509CertificateConverter()
@@ -278,10 +263,8 @@ public class Licensor {
 		}
 	}
 
-	/**
-	 * Returns either the preferred end date if it is not null and earlier than
-	 * the CA end date, otherwise it returns the CA end date.
-	 */
+	/// Returns either the preferred end date if it is not null and earlier than
+	/// the CA end date, otherwise it returns the CA end date.
 	public Date determineEndDate(Date preferredEndDate) {
 		var caEndDate = getCertificateAuthority().getNotAfter();
 		if (preferredEndDate == null)
@@ -290,10 +273,8 @@ public class Licensor {
 		return preferredEndDate.after(caEndDate) ? caEndDate : preferredEndDate;
 	}
 
-	/**
-	 * Creates a new certificate by calling the {@link CertificateGenerator}
-	 * instantiated with the certificate authority.
-	 */
+	/// Creates a new certificate by calling the [CertificateGenerator]
+	/// instantiated with the certificate authority.
 	public String createCertificate(CertificateInfo info) {
 		var keyPairCA = new KeyPair(publicKeyCA, privateKeyCA);
 		var generator = new CertificateGenerator(certAuthority, keyPairCA);
