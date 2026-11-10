@@ -12,7 +12,7 @@
 
 	<groupId>org.openlca</groupId>
 	<artifactId>olca-license</artifactId>
-	<version>0.0.2-SNAPSHOT</version>
+	<version>0.0.2</version>
 
 	<name>${project.groupId}:${project.artifactId}</name>
 	<description>A licensing framework for openLCA that can certify, sign and
